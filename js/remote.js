@@ -5,6 +5,12 @@ const CHANNEL = 'fmp-tp-remote';
 const PEER_PREFIX = 'fmp-tp-';
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+/** Opções do PeerJS: servidor próprio (config.js) ou o broker público. */
+function peerOptions() {
+  const cfg = (typeof window !== 'undefined' && window.FMP_CONFIG?.peer) || null;
+  return cfg ? { ...cfg, debug: 0 } : { debug: 0 };
+}
+
 export function randomCode(len = 6) {
   const bytes = new Uint8Array(len);
   crypto.getRandomValues(bytes);
@@ -41,7 +47,7 @@ export class RemoteHost {
     if (typeof window.Peer === 'function' && navigator.onLine) {
       await new Promise((resolve) => {
         try {
-          this.peer = new window.Peer(PEER_PREFIX + this.code, { debug: 0 });
+          this.peer = new window.Peer(PEER_PREFIX + this.code, peerOptions());
         } catch { return resolve(); }
         const done = () => resolve();
         this.peer.on('open', () => { this.online = true; done(); });
@@ -120,7 +126,7 @@ export class RemoteClient {
       this.bc.postMessage({ type: 'hello', code: this.code });
     }
     if (typeof window.Peer === 'function' && navigator.onLine) {
-      this.peer = new window.Peer({ debug: 0 });
+      this.peer = new window.Peer(peerOptions());
       this.peer.on('open', () => {
         this.conn = this.peer.connect(PEER_PREFIX + this.code, { reliable: true });
         this.conn.on('open', () => this._open());

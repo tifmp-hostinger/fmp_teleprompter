@@ -16,6 +16,7 @@ const ASSETS = [
   './js/remote.js',
   './js/pip.js',
   './js/ai.js',
+  './config.js',
   './manifest.webmanifest',
   './icons/icon.svg',
 ];

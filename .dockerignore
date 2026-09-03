@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+tests
+server.mjs
+package.json
+package-lock.json
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.log
+*.png

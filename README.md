@@ -26,6 +26,7 @@ Foi desenhado a partir do que os líderes do mercado oferecem (Teleprompter.com,
 | Relatório pós-apresentação (duração, ritmo, pausas) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Gerador de roteiro com IA | Pago | ❌ | Pago | ❌ | Pago | ✅ com a sua própria chave |
 | Funciona offline / instalável (PWA) | App nativo | App nativo | App nativo | ❌ | ❌ | ✅ |
+| Auto-hospedável (Docker / EasyPanel) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Configurações por roteiro (velocidade, fonte) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Preço | Assinatura | Assinatura | Assinatura | Assinatura | Grátis/limitado | **Grátis, código aberto** |
 
@@ -63,6 +64,57 @@ npm test           # testes unitários do parser e do rastreamento por voz (Node
 ```
 
 Ou simplesmente sirva a pasta com qualquer servidor estático. **Câmera, microfone e PiP exigem HTTPS** (ou `localhost`).
+
+## Docker
+
+A imagem é um nginx servindo os arquivos estáticos, sem etapa de build.
+
+```bash
+docker build -t fmp-teleprompter .
+docker run -d --name teleprompter -p 8080:80 fmp-teleprompter
+# http://localhost:8080
+```
+
+Ou com Compose:
+
+```bash
+docker compose up --build -d
+```
+
+O que a imagem já entrega pronto:
+
+- Tipo MIME correto para `manifest.webmanifest` e módulos ES, mais gzip.
+- `Cache-Control: no-cache` com ETag no HTML, CSS e JS, para que um novo deploy apareça sem limpar cache. Ícones ficam em cache por uma semana.
+- `Permissions-Policy` liberando câmera, microfone, tela cheia, PiP e wake lock, que alguns proxies bloqueiam por padrão.
+- Content-Security-Policy restrita ao que o app usa de fato.
+- `/healthz` respondendo `ok` para o healthcheck do orquestrador.
+- URLs limpas: `/remote` e `/output` funcionam sem o `.html`.
+
+Variáveis de ambiente:
+
+| Variável | Padrão | Para que serve |
+|---|---|---|
+| `PORT` | `80` | Porta que o nginx escuta dentro do contêiner |
+| `PEER_HOST` | vazio | Domínio de um servidor PeerJS próprio para o controle remoto |
+| `PEER_PORT` | `443` | Porta desse servidor |
+| `PEER_PATH` | `/` | Caminho desse servidor |
+| `PEER_SECURE` | `true` | Usar TLS na conexão com ele |
+| `PEER_KEY` | vazio | Chave, se você configurou uma |
+
+Sem `PEER_HOST` o controle remoto usa o broker público do PeerJS. Ele só troca as mensagens de conexão; os comandos viajam direto entre os aparelhos por WebRTC.
+
+## Publicar no EasyPanel
+
+1. No EasyPanel, crie um **App** e aponte a origem para este repositório do GitHub, na branch desejada.
+2. Em **Build**, escolha **Dockerfile**. O arquivo já está na raiz do projeto.
+3. Em **Domains**, adicione o seu domínio e defina a porta do contêiner como **80**. Deixe o HTTPS ligado, o EasyPanel emite o certificado Let's Encrypt.
+4. Clique em **Deploy**.
+
+O HTTPS não é opcional: sem ele o navegador bloqueia câmera, microfone, rolagem por voz, janela flutuante e a instalação como PWA.
+
+Não há banco de dados nem volumes a configurar. Os roteiros ficam no `localStorage` do navegador de cada usuário, e o botão **Backup (.json)** exporta tudo.
+
+Se quiser o controle remoto sem depender do broker público, suba também o serviço `peerjs` (já descrito no `docker-compose.yml`), publique-o em um subdomínio com HTTPS e preencha `PEER_HOST` no app. Nesse caso, acrescente esse domínio ao `connect-src` da CSP em `docker/default.conf.template`.
 
 ## Publicar na Hostinger (ou qualquer hosting estático)
 
@@ -107,9 +159,13 @@ js/pip.js             Document Picture-in-Picture
 js/ai.js              geração de roteiro (API Anthropic, streaming)
 js/i18n.js            traduções pt-BR / en / es
 js/storage.js         localStorage (roteiros, ajustes, sessões)
+config.js             configuração de runtime (servidor PeerJS próprio)
 sw.js, manifest.webmanifest, icons/   PWA
 tests/                testes unitários (node --test)
 server.mjs            servidor estático de desenvolvimento
+Dockerfile            imagem nginx para EasyPanel / Docker
+docker/               config do nginx e entrypoint que gera o config.js
+docker-compose.yml    execução local e servidor PeerJS opcional
 ```
 
 ## Compatibilidade
