@@ -145,7 +145,7 @@ export function saveAiKey(key) {
 
 export function exportBackup() {
   return JSON.stringify({
-    app: 'fmp-teleprompter',
+    app: 'fmp-barzi-prompter',
     version: 1,
     exportedAt: new Date().toISOString(),
     scripts: loadScripts(),

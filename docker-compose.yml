@@ -3,7 +3,7 @@
 services:
   teleprompter:
     build: .
-    image: fmp-teleprompter:latest
+    image: fmp-barzi-prompter:latest
     restart: unless-stopped
     ports:
       - "8080:80"

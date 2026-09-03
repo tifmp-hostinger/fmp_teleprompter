@@ -1,4 +1,4 @@
-# FMP Teleprompter — imagem estática para EasyPanel / Docker.
+# FMP Barzi Prompter — imagem estática para EasyPanel / Docker.
 # O app é 100% front-end (HTML + CSS + ES modules), então basta um nginx
 # servindo os arquivos com os cabeçalhos certos. Não há build step.
 FROM nginx:1.27-alpine

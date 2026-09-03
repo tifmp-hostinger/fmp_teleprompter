@@ -1,7 +1,7 @@
 // Internacionalização simples: pt-BR (padrão), en, es.
 const STRINGS = {
   'pt-BR': {
-    appName: 'FMP Teleprompter',
+    appName: 'FMP Barzi Prompter',
     tagline: 'Teleprompter profissional no navegador',
     scripts: 'Roteiros',
     newScript: 'Novo roteiro',
@@ -177,7 +177,7 @@ const STRINGS = {
     sample: 'Roteiro de exemplo',
   },
   en: {
-    appName: 'FMP Teleprompter',
+    appName: 'FMP Barzi Prompter',
     tagline: 'Professional teleprompter in your browser',
     scripts: 'Scripts',
     newScript: 'New script',
@@ -351,7 +351,7 @@ const STRINGS = {
     sample: 'Sample script',
   },
   es: {
-    appName: 'FMP Teleprompter',
+    appName: 'FMP Barzi Prompter',
     tagline: 'Teleprompter profesional en el navegador',
     scripts: 'Guiones',
     newScript: 'Nuevo guion',
@@ -564,7 +564,9 @@ export function applyTranslations(root = document) {
     el.title = t(el.dataset.i18nTitle);
     el.setAttribute('aria-label', t(el.dataset.i18nTitle));
   });
-  document.title = t('appName');
+  // Cada página pode acrescentar um sufixo: <html data-title-key="remoteTitle">
+  const key = document.documentElement.dataset.titleKey;
+  document.title = key ? `${t('appName')} — ${t(key)}` : t('appName');
 }
 
 /** Roteiro de exemplo no idioma atual. */

@@ -1,6 +1,6 @@
 {
-  "name": "FMP Teleprompter",
-  "short_name": "Teleprompter",
+  "name": "FMP Barzi Prompter",
+  "short_name": "Barzi Prompter",
   "description": "Teleprompter profissional: rolagem por voz, espelhamento, câmera, controle remoto e segundo monitor.",
   "id": "/index.html",
   "start_url": "./index.html?source=pwa",

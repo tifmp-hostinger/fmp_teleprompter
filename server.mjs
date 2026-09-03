@@ -41,4 +41,4 @@ createServer(async (req, res) => {
     res.writeHead(err.code === 'EACCES' ? 403 : 404, { 'Content-Type': 'text/plain' });
     res.end(err.code === 'EACCES' ? 'Forbidden' : 'Not found');
   }
-}).listen(PORT, () => console.log(`FMP Teleprompter em http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`FMP Barzi Prompter em http://localhost:${PORT}`));

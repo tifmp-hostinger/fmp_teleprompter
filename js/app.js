@@ -1,4 +1,4 @@
-// FMP Teleprompter — aplicação principal (editor + apresentação).
+// FMP Barzi Prompter — aplicação principal (editor + apresentação).
 import { parseScript, estimateSeconds, wpmForDuration, formatTime, findVoicePosition, stripMarkup } from './script-parser.js';
 import { t, setLang, getLang, applyTranslations, LANGS, sampleScript } from './i18n.js';
 import {
@@ -190,7 +190,7 @@ $('#btnExport').addEventListener('click', () => {
 });
 
 $('#btnBackup').addEventListener('click', () => {
-  download(`fmp-teleprompter-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
+  download(`fmp-barzi-prompter-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
 });
 $('#btnRestore').addEventListener('click', () => $('#fileImport').click());
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());

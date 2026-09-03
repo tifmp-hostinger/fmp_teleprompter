@@ -1,5 +1,5 @@
 {
-  "name": "fmp-teleprompter",
+  "name": "fmp-barzi-prompter",
   "version": "1.0.0",
   "description": "Teleprompter profissional 100% web: rolagem por voz, espelhamento, câmera, controle remoto, saída para segundo monitor e PWA offline.",
   "type": "module",

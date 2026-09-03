@@ -1,4 +1,4 @@
-# FMP Teleprompter
+# FMP Barzi Prompter
 
 Teleprompter profissional **100 % web**, sem instalação, sem conta e sem servidor: abre em qualquer navegador (desktop, tablet, celular), funciona offline como PWA e pode ser hospedado em qualquer hosting estático (Hostinger, GitHub Pages, Netlify…).
 
@@ -6,7 +6,7 @@ Foi desenhado a partir do que os líderes do mercado oferecem (Teleprompter.com,
 
 ## Comparativo com o mercado
 
-| Recurso | Teleprompter.com | PromptSmart | BIGVU | Speakflow | CuePrompter | **FMP Teleprompter** |
+| Recurso | Teleprompter.com | PromptSmart | BIGVU | Speakflow | CuePrompter | **FMP Barzi Prompter** |
 |---|---|---|---|---|---|---|
 | Rolagem em velocidade fixa (ppm) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Rolagem cronometrada (caber em X min) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -73,8 +73,8 @@ Ou simplesmente sirva a pasta com qualquer servidor estático. **Câmera, microf
 A imagem é um nginx servindo os arquivos estáticos, sem etapa de build.
 
 ```bash
-docker build -t fmp-teleprompter .
-docker run -d --name teleprompter -p 8080:80 fmp-teleprompter
+docker build -t fmp-barzi-prompter .
+docker run -d --name barzi-prompter -p 8080:80 fmp-barzi-prompter
 # http://localhost:8080
 ```
 

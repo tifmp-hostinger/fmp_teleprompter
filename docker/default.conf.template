@@ -1,4 +1,4 @@
-# FMP Teleprompter — configuração do nginx dentro do contêiner.
+# FMP Barzi Prompter — configuração do nginx dentro do contêiner.
 # ${PORT} é substituído pelo entrypoint oficial da imagem nginx.
 
 # Cache por tipo de conteúdo. Os arquivos não têm hash no nome, então o HTML,
