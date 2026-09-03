@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FMP Teleprompter">
+  <!-- Versão maskable: o conteúdo cabe na zona segura (círculo central de 80%). -->
+  <defs>
+    <linearGradient id="bgm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a84ff"/>
+      <stop offset="1" stop-color="#0040dd"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgm)"/>
+  <g fill="#ffffff">
+    <rect x="152" y="182" width="208" height="20" rx="10" opacity=".45"/>
+    <rect x="152" y="224" width="170" height="20" rx="10" opacity=".62"/>
+    <rect x="136" y="264" width="240" height="34" rx="17"/>
+    <rect x="152" y="318" width="196" height="20" rx="10" opacity=".62"/>
+    <rect x="152" y="360" width="134" height="20" rx="10" opacity=".45"/>
+  </g>
+</svg>

@@ -3,12 +3,20 @@
 # servindo os arquivos com os cabeçalhos certos. Não há build step.
 FROM nginx:1.27-alpine
 
+# Node roda apenas o proxy da IA (opcional, ligado por variável de ambiente).
+RUN apk add --no-cache nodejs
+
 # Configuração do servidor (o entrypoint oficial faz envsubst de ${PORT}).
 COPY docker/default.conf.template /etc/nginx/templates/default.conf.template
 
-# Gera o config.js de runtime (servidor PeerJS próprio, se configurado).
+# Entrypoints: proxy de IA e config.js de runtime.
+COPY docker/30-fmp-ai-proxy.sh /docker-entrypoint.d/30-fmp-ai-proxy.sh
 COPY docker/40-fmp-runtime-config.sh /docker-entrypoint.d/40-fmp-runtime-config.sh
-RUN chmod +x /docker-entrypoint.d/40-fmp-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/30-fmp-ai-proxy.sh /docker-entrypoint.d/40-fmp-runtime-config.sh
+
+# Proxy da IA (guarda a chave fora do navegador).
+COPY server/ /app/server/
+COPY js/ai-shared.js /app/js/ai-shared.js
 
 # Arquivos do app.
 WORKDIR /usr/share/nginx/html

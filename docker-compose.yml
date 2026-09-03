@@ -9,6 +9,12 @@ services:
       - "8080:80"
     environment:
       PORT: "80"
+      # Gerador de roteiro com IA. Com a chave aqui ela fica no servidor e
+      # nunca chega ao navegador de quem usa o app.
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      # AI_MODEL: ""            # vazio = escolhe o melhor disponível na conta
+      # AI_RATE_PER_MIN: "10"   # gerações por IP por minuto
       # Descomente para usar o servidor PeerJS abaixo em vez do público.
       # Em produção aponte para o domínio público do serviço peerjs.
       # PEER_HOST: "peer.seudominio.com"

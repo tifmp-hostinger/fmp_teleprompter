@@ -103,6 +103,11 @@ export function getScript(id) {
 
 // ---- Configurações ----------------------------------------------------------
 
+/** Já existem configurações salvas neste navegador? */
+export function hasSavedSettings() {
+  try { return localStorage.getItem(KEYS.settings) !== null; } catch { return false; }
+}
+
 export function loadSettings() {
   return { ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) };
 }

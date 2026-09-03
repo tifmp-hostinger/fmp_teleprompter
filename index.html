@@ -5,10 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>FMP Teleprompter</title>
   <meta name="description" content="Teleprompter profissional no navegador: rolagem por voz, espelhamento, câmera, controle remoto pelo celular, segundo monitor e uso offline.">
-  <meta name="theme-color" content="#0b0d12">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Teleprompter">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152.png">
   <link rel="stylesheet" href="css/styles.css">
   <script src="config.js"></script>
 </head>
@@ -52,7 +59,7 @@
         </div>
         <div class="toolbar">
           <button class="btn" data-wrap="**" data-i18n-title="bold"><b>B</b></button>
-          <button class="btn" data-wrap="==" data-i18n-title="highlight"><mark style="background:#ffd54a;color:#1a1500;border-radius:3px;padding:0 3px">H</mark></button>
+          <button class="btn" data-wrap="==" data-i18n-title="highlight"><mark class="hl-swatch">H</mark></button>
           <select id="cueSelect" data-i18n-title="cue"></select>
           <button class="btn" data-insert-line="# " data-i18n-title="heading">#</button>
           <button class="btn" data-insert-line="---" data-i18n-title="divider">—</button>
@@ -112,10 +119,11 @@
       <div id="progress" class="progress"><div id="progressFill"></div><div id="progressMarkers"></div></div>
       <div class="transport">
         <button id="btnRestart" class="btn icon" data-i18n-title="restart">⟲</button>
-        <button id="btnSlower" class="btn icon" data-i18n-title="slower">−</button>
         <button id="btnPlay" class="btn icon play" data-i18n-title="play">▶</button>
-        <button id="btnFaster" class="btn icon" data-i18n-title="faster">+</button>
-        <span id="hudSpeed" class="speed">150 ppm</span>
+        <div class="speed-wrap">
+          <div class="speed-label"><b id="hudSpeed">150</b><span id="hudSpeedUnit" data-i18n="wpm"></span></div>
+          <div id="speedDial"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -244,7 +252,8 @@
       <option value="inspiring" data-i18n="toneInspiring"></option><option value="educational" data-i18n="toneEducational"></option>
       <option value="sales" data-i18n="toneSales"></option>
     </select></div>
-    <div class="field"><label data-i18n="aiKey"></label><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+    <div class="field" id="aiKeyField"><label data-i18n="aiKey"></label><input id="aiKey" type="password" placeholder="sk-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+    <p class="hint" id="aiKeyServerHint" hidden data-i18n="aiKeyServer"></p>
     <pre id="aiPreview" hidden></pre>
     <div id="aiStatus" class="status"></div>
   </div>
@@ -259,9 +268,21 @@
   <div class="dlg-body">
     <div class="field inline"><label data-i18n="language"></label><select id="prefLang"></select></div>
     <div class="field inline"><label data-i18n="theme"></label><select id="prefTheme">
-      <option value="dark" data-i18n="themeDark"></option><option value="light" data-i18n="themeLight"></option>
+      <option value="dark" data-i18n="themeDark"></option>
+      <option value="light" data-i18n="themeLight"></option>
+      <option value="mono" data-i18n="themeMono"></option>
     </select></div>
-    <div class="field"><label data-i18n="aiKey"></label><input id="prefAiKey" type="password" placeholder="sk-ant-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+    <div class="field"><label data-i18n="aiKey"></label><input id="prefAiKey" type="password" placeholder="sk-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+  </div>
+  <div class="dlg-foot"><button class="btn primary" data-close data-i18n="close"></button></div>
+</dialog>
+
+<dialog id="dlgInstall">
+  <div class="dlg-head"><h2 data-i18n="installTitle"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <p class="hint" id="installIntro"></p>
+    <ol class="steps" id="installSteps"></ol>
+    <p class="hint" data-i18n="installNote"></p>
   </div>
   <div class="dlg-foot"><button class="btn primary" data-close data-i18n="close"></button></div>
 </dialog>

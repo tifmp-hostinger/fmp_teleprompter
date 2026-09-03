@@ -1,5 +1,5 @@
 // Service worker: cache do app para funcionar offline (PWA).
-const CACHE = 'fmp-teleprompter-v1';
+const CACHE = 'fmp-teleprompter-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -16,9 +16,15 @@ const ASSETS = [
   './js/remote.js',
   './js/pip.js',
   './js/ai.js',
+  './js/ai-shared.js',
+  './js/slider.js',
   './config.js',
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
 ];
 
 self.addEventListener('install', (event) => {

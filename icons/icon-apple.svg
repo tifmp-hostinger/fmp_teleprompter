@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FMP Teleprompter">
+  <!-- Ícone do iOS: fundo inteiro, sem cantos arredondados (o sistema aplica a máscara). -->
+  <defs>
+    <linearGradient id="bga" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a84ff"/>
+      <stop offset="1" stop-color="#0040dd"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bga)"/>
+  <g fill="#ffffff">
+    <rect x="120" y="160" width="272" height="24" rx="12" opacity=".45"/>
+    <rect x="120" y="214" width="222" height="24" rx="12" opacity=".62"/>
+    <rect x="100" y="264" width="312" height="42" rx="21"/>
+    <rect x="120" y="332" width="256" height="24" rx="12" opacity=".62"/>
+    <rect x="120" y="386" width="176" height="24" rx="12" opacity=".45"/>
+  </g>
+</svg>

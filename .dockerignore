@@ -10,4 +10,3 @@ docker-compose.yml
 Dockerfile
 .dockerignore
 *.log
-*.png

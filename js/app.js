@@ -3,14 +3,15 @@ import { parseScript, estimateSeconds, wpmForDuration, formatTime, findVoicePosi
 import { t, setLang, getLang, applyTranslations, LANGS, sampleScript } from './i18n.js';
 import {
   loadScripts, createScript, updateScript, deleteScript, duplicateScript, getScript,
-  loadSettings, saveSettings, addSession, exportBackup, importBackup, loadAiKey, saveAiKey,
+  loadSettings, saveSettings, hasSavedSettings, addSession, exportBackup, importBackup, loadAiKey, saveAiKey,
 } from './storage.js';
 import { Prompter } from './prompter.js';
 import { VoiceTracker, VOICE_LANGS } from './voice.js';
 import { CameraRig } from './camera.js';
 import { RemoteHost } from './remote.js';
 import { openPip, pipSupported } from './pip.js';
-import { generateScript } from './ai.js';
+import { generateScript, serverStatus } from './ai.js';
+import { DragDial } from './slider.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -58,6 +59,7 @@ const els = {
   hudElapsed: $('#hudElapsed'),
   hudRemaining: $('#hudRemaining'),
   hudSpeed: $('#hudSpeed'),
+  hudSpeedUnit: $('#hudSpeedUnit'),
   progress: $('#progress'),
   progressFill: $('#progressFill'),
   progressMarkers: $('#progressMarkers'),
@@ -87,9 +89,11 @@ function download(name, text, type = 'text/plain;charset=utf-8') {
 
 function safeName(s) { return (s || t('untitled')).replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80); }
 
+const THEME_COLORS = { dark: '#000000', light: '#f2f2f7', mono: '#000000' };
 function applyTheme() {
-  document.documentElement.dataset.theme = settings.theme === 'light' ? 'light' : 'dark';
-  $('meta[name="theme-color"]').content = settings.theme === 'light' ? '#f4f5f9' : '#0b0d12';
+  const theme = THEME_COLORS[settings.theme] ? settings.theme : 'dark';
+  document.documentElement.dataset.theme = theme;
+  $('meta[name="theme-color"]').content = THEME_COLORS[theme];
 }
 
 function persistSettings() { saveSettings(settings); }
@@ -289,8 +293,42 @@ function refreshTexts() {
 }
 
 let installPrompt = null;
+
+/** Plataforma do visitante, para explicar a instalação do jeito certo. */
+function platformInfo() {
+  const ua = navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+  return { iOS, android, standalone };
+}
+
+function showInstallHelp() {
+  const { iOS, android, standalone } = platformInfo();
+  if (standalone) { toast(t('installedAlready')); return; }
+  const keys = iOS ? ['installIos1', 'installIos2', 'installIos3']
+    : android ? ['installAndroid1', 'installAndroid2', 'installAndroid3']
+      : ['installDesktop1', 'installDesktop2'];
+  $('#installIntro').textContent = t(iOS ? 'installIntroIos' : android ? 'installIntroAndroid' : 'installIntroDesktop');
+  $('#installSteps').replaceChildren(...keys.map((k) => {
+    const li = document.createElement('li');
+    li.textContent = t(k);
+    return li;
+  }));
+  $('#dlgInstall').showModal();
+}
+
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; $('#btnInstall').hidden = false; });
-$('#btnInstall').addEventListener('click', async () => { await installPrompt?.prompt(); installPrompt = null; $('#btnInstall').hidden = true; });
+window.addEventListener('appinstalled', () => { installPrompt = null; $('#btnInstall').hidden = true; });
+$('#btnInstall').addEventListener('click', async () => {
+  if (installPrompt) {
+    await installPrompt.prompt();
+    installPrompt = null;
+    $('#btnInstall').hidden = true;
+    return;
+  }
+  showInstallHelp();
+});
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
@@ -300,18 +338,27 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 // ---------------------------------------------------------------------------
 const dlgAi = $('#dlgAi');
 let aiAbort = null;
-$('#btnAi').addEventListener('click', () => {
+let aiServer = { enabled: false };
+$('#btnAi').addEventListener('click', async () => {
   $('#aiKey').value = loadAiKey();
   $('#aiPreview').hidden = true; $('#aiPreview').textContent = '';
   $('#aiStatus').textContent = '';
   dlgAi.showModal();
+  // Com chave no servidor não é preciso pedir nada a quem usa.
+  aiServer = await serverStatus();
+  $('#aiKeyField').hidden = aiServer.enabled;
+  $('#aiKeyServerHint').hidden = !aiServer.enabled;
 });
 dlgAi.addEventListener('close', () => aiAbort?.abort());
 $('#btnAiGenerate').addEventListener('click', async () => {
   const apiKey = $('#aiKey').value.trim();
   const topic = $('#aiTopic').value.trim();
-  if (!topic || !apiKey) { $('#aiStatus').textContent = t('aiError', { msg: !apiKey ? t('aiKey') : t('aiTopic') }); return; }
-  saveAiKey(apiKey);
+  if (!topic || (!apiKey && !aiServer.enabled)) {
+    $('#aiStatus').className = 'status err';
+    $('#aiStatus').textContent = t('aiError', { msg: !topic ? t('aiTopic') : t('aiKey') });
+    return;
+  }
+  if (apiKey) saveAiKey(apiKey);
   const toneKey = { casual: 'toneCasual', professional: 'toneProfessional', inspiring: 'toneInspiring', educational: 'toneEducational', sales: 'toneSales' }[$('#aiTone').value];
   const btn = $('#btnAiGenerate');
   btn.disabled = true;
@@ -321,7 +368,8 @@ $('#btnAiGenerate').addEventListener('click', async () => {
   let text = '';
   try {
     for await (const chunk of generateScript({
-      apiKey, topic, minutes: Number($('#aiMinutes').value), tone: t(toneKey), language: getLang(), signal: aiAbort.signal,
+      apiKey, topic, minutes: Number($('#aiMinutes').value), tone: t(toneKey), language: getLang(),
+      signal: aiAbort.signal, useServer: aiServer.enabled,
     })) {
       text += chunk;
       preview.textContent = text;
@@ -381,6 +429,7 @@ function startPresentation() {
   prompter.setScript(parsed);
   renderMarkers();
   bindSettingsPanel();
+  setupSpeedDial();
   session.pauses = 0; session.startedAt = 0; session.voiceWpmSamples = [];
   voiceIndex = 0; liveWpm = 0;
   els.hudLiveWpm.hidden = true;
@@ -433,9 +482,11 @@ els.progress.addEventListener('click', (e) => {
 function updateHud(state) {
   els.btnPlay.textContent = state.playing ? '❚❚' : '▶';
   els.btnPlay.title = t(state.playing ? 'pause' : 'play');
-  els.hudSpeed.textContent = state.mode === 'timed'
-    ? formatTime(state.totalSeconds)
-    : `${state.wpm} ${t('wpm')}`;
+  els.hudSpeed.textContent = state.mode === 'timed' ? formatTime(state.totalSeconds) : String(state.wpm);
+  els.hudSpeedUnit.textContent = state.mode === 'timed' ? t('targetDuration') : t('wpm');
+  if (speedDial && !speedDial.dragging) {
+    speedDial.set(state.mode === 'timed' ? settings.targetMinutes : state.wpm, true);
+  }
   els.hudMode.textContent = t({ fixed: 'modeFixed', timed: 'modeTimed', voice: 'modeVoice', manual: 'modeManual' }[state.mode]);
   els.progressFill.style.width = `${state.progress * 100}%`;
   els.hudElapsed.textContent = formatTime(state.elapsed);
@@ -466,8 +517,40 @@ function cancelCountdown() { clearTimeout(countdownTimer); els.countdown.hidden 
 
 els.btnPlay.addEventListener('click', playWithCountdown);
 $('#btnRestart').addEventListener('click', () => { cancelCountdown(); prompter.restart(); voiceIndex = 0; });
-$('#btnSlower').addEventListener('click', () => changeSpeed(-10));
-$('#btnFaster').addEventListener('click', () => changeSpeed(10));
+
+// Velocidade por arrasto: no modo cronometrado ajusta a duração alvo.
+let speedDial = null;
+function setupSpeedDial() {
+  if (!speedDial) {
+    speedDial = new DragDial($('#speedDial'), {
+      min: 40, max: 400, step: 5, value: settings.wpm, label: t('speed'),
+      format: (v) => String(v),
+      onInput: (v) => applyDialValue(v),
+      onChange: () => { persistSettings(); broadcastScript(); },
+    });
+  }
+  configureSpeedDial();
+}
+function configureSpeedDial() {
+  if (!speedDial) return;
+  if (settings.mode === 'timed') {
+    speedDial.configure({ min: 0.5, max: 60, step: 0.5, value: settings.targetMinutes, label: t('targetDuration'), format: (v) => formatTime(v * 60) });
+  } else {
+    speedDial.configure({ min: 40, max: 400, step: 5, value: settings.wpm, label: t('speed'), format: (v) => String(v) });
+  }
+}
+function applyDialValue(v) {
+  if (settings.mode === 'timed') {
+    settings.targetMinutes = v;
+    prompter.setSettings(settings);
+  } else {
+    settings.wpm = v;
+    prompter.setWpm(v);
+    if (currentId) updateScript(currentId, { wpm: v });
+  }
+  prompter.emit();
+  syncPanelInputs();
+}
 
 function changeSpeed(delta) {
   if (settings.mode === 'timed') {
@@ -480,6 +563,7 @@ function changeSpeed(delta) {
   }
   persistSettings();
   syncPanelInputs();
+  configureSpeedDial();
   broadcastScript();
 }
 
@@ -594,6 +678,7 @@ function setMode(mode) {
   prompter.emit();
   if (mode === 'voice') startVoice(); else stopVoice();
   syncPanelInputs();
+  configureSpeedDial();
   broadcastScript();
 }
 
@@ -781,6 +866,11 @@ function handleRemoteCommand(cmd) {
     case 'pause': prompter.pause(); break;
     case 'restart': cancelCountdown(); prompter.restart(); voiceIndex = 0; break;
     case 'speed': changeSpeed(Number(cmd.d) || 0); break;
+    case 'setSpeed': {
+      const v = Number(cmd.v);
+      if (Number.isFinite(v)) { applyDialValue(v); persistSettings(); configureSpeedDial(); broadcastScript(); }
+      break;
+    }
     case 'seek': prompter.seekLines(Number(cmd.lines) || 0); voiceIndex = prompter.currentWord; break;
     case 'font': changeFont(Number(cmd.d) || 0); break;
     case 'mode': setMode(cmd.v); break;
@@ -796,7 +886,8 @@ function remoteState(state) {
   lastRemoteSent = now;
   remote.sendState({
     playing: state.playing, progress: state.progress, elapsed: state.elapsed, remaining: state.remaining,
-    wpm: state.wpm, mode: state.mode, context: prompter.currentContext(), title: els.title.value,
+    wpm: state.wpm, mode: state.mode, targetMinutes: settings.targetMinutes,
+    context: prompter.currentContext(), title: els.title.value,
   });
 }
 $('#btnRemote').addEventListener('click', async () => {
@@ -852,6 +943,12 @@ $('#btnReportEditor').addEventListener('click', () => { dlgReport.close(); if (!
 // Inicialização
 // ---------------------------------------------------------------------------
 function init() {
+  // Primeira vez num celular: a fonte padrão de desktop fica grande demais.
+  if (!hasSavedSettings()) {
+    const side = Math.min(window.innerWidth, window.innerHeight);
+    settings.fontSize = Math.max(24, Math.min(56, Math.round(side * 0.075)));
+    persistSettings();
+  }
   applyTheme();
   setLang(getLang());
   fillCueSelect();
@@ -861,6 +958,7 @@ function init() {
     scripts = loadScripts();
   }
   els.fitMinutes.value = settings.targetMinutes;
+  $('#btnInstall').hidden = platformInfo().standalone;
   selectScript(scripts[0].id);
   applyTranslations(document);
 }

@@ -1,14 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FMP Teleprompter">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1f2a44"/>
-      <stop offset="1" stop-color="#0b0d12"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a84ff"/>
+      <stop offset="1" stop-color="#0040dd"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <rect x="96" y="150" width="320" height="28" rx="14" fill="#ffffff" opacity=".35"/>
-  <rect x="96" y="214" width="260" height="28" rx="14" fill="#ffffff" opacity=".55"/>
-  <rect x="72" y="270" width="368" height="44" rx="22" fill="#ffd54a"/>
-  <rect x="96" y="346" width="300" height="28" rx="14" fill="#ffffff" opacity=".55"/>
-  <rect x="96" y="410" width="200" height="28" rx="14" fill="#ffffff" opacity=".35"/>
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <g fill="#ffffff">
+    <rect x="104" y="146" width="304" height="26" rx="13" opacity=".45"/>
+    <rect x="104" y="206" width="248" height="26" rx="13" opacity=".62"/>
+    <rect x="80" y="262" width="352" height="46" rx="23"/>
+    <rect x="104" y="340" width="286" height="26" rx="13" opacity=".62"/>
+    <rect x="104" y="400" width="196" height="26" rx="13" opacity=".45"/>
+  </g>
 </svg>
