@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FMP Teleprompter — Saída</title>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { background: #000; overflow: hidden; }
+    .waiting { position: absolute; inset: 0; display: grid; place-items: center; color: #9aa3b5; font-size: 18px; text-align: center; padding: 20px; z-index: 3; }
+    .out-tools { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 6px; opacity: 0; transition: opacity .3s; }
+    body:hover .out-tools { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="stage" class="tp-stage">
+    <div id="viewport" class="tp-viewport"><div id="content" class="tp-content"></div></div>
+    <div class="tp-dim tp-dim-top"></div>
+    <div class="tp-dim tp-dim-bottom"></div>
+    <div class="tp-reading-line"></div>
+  </div>
+  <div id="waiting" class="waiting">Aguardando o teleprompter principal…<br><small>Abra esta janela pelo botão “Segundo monitor” do app.</small></div>
+  <div class="out-tools">
+    <button id="btnMirror" class="btn icon" title="Espelhar (M)">⇋</button>
+    <button id="btnFlip" class="btn icon" title="Inverter vertical (V)">⇅</button>
+    <button id="btnFs" class="btn icon" title="Tela cheia (F)">⛶</button>
+  </div>
+  <script type="module">
+    import { parseScript } from './js/script-parser.js';
+    import { Prompter } from './js/prompter.js';
+
+    const prompter = new Prompter({ stage: document.getElementById('stage'), viewport: document.getElementById('viewport'), content: document.getElementById('content') });
+    const waiting = document.getElementById('waiting');
+    // Espelhamento local desta janela (independente do principal).
+    const local = { mirrorH: false, mirrorV: false };
+    let settings = null;
+
+    function apply() {
+      if (!settings) return;
+      prompter.setSettings({ ...settings, mirrorH: settings.mirrorH !== local.mirrorH, mirrorV: settings.mirrorV !== local.mirrorV });
+    }
+
+    const bc = new BroadcastChannel('fmp-tp-output');
+    bc.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.type === 'script') {
+        settings = msg.settings;
+        document.title = `${msg.title || 'Teleprompter'} — Saída`;
+        apply();
+        const p = prompter.getState().progress;
+        prompter.setScript(parseScript(msg.source));
+        prompter.jumpToProgress(p);
+        waiting.hidden = true;
+      } else if (msg.type === 'progress') {
+        prompter.jumpToProgress(msg.p);
+      }
+    };
+    bc.postMessage({ type: 'hello' });
+
+    const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    document.getElementById('btnMirror').onclick = () => { local.mirrorH = !local.mirrorH; apply(); };
+    document.getElementById('btnFlip').onclick = () => { local.mirrorV = !local.mirrorV; apply(); };
+    document.getElementById('btnFs').onclick = toggleFs;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'm' || e.key === 'M') { local.mirrorH = !local.mirrorH; apply(); }
+      if (e.key === 'v' || e.key === 'V') { local.mirrorV = !local.mirrorV; apply(); }
+      if (e.key === 'f' || e.key === 'F') toggleFs();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "fmp-teleprompter",
+  "version": "1.0.0",
+  "description": "Teleprompter profissional 100% web: rolagem por voz, espelhamento, câmera, controle remoto, saída para segundo monitor e PWA offline.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\""
+  },
+  "license": "MIT",
+  "private": true
+}

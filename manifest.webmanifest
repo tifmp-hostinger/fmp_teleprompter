@@ -1,0 +1,18 @@
+{
+  "name": "FMP Teleprompter",
+  "short_name": "Teleprompter",
+  "description": "Teleprompter profissional: rolagem por voz, espelhamento, câmera, controle remoto e segundo monitor.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Controle remoto", "url": "./remote.html", "description": "Controlar um teleprompter pelo celular" }
+  ]
+}

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FMP Teleprompter</title>
+  <meta name="description" content="Teleprompter profissional no navegador: rolagem por voz, espelhamento, câmera, controle remoto pelo celular, segundo monitor e uso offline.">
+  <meta name="theme-color" content="#0b0d12">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===================== EDITOR / BIBLIOTECA ===================== -->
+<div id="view-editor" class="view">
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon.svg" alt=""><span data-i18n="appName"></span><small data-i18n="tagline"></small></div>
+    <div class="topbar-actions">
+      <button id="btnInstall" class="btn small" hidden data-i18n="installApp"></button>
+      <button id="btnShortcuts" class="btn icon" data-i18n-title="shortcuts">⌨</button>
+      <button id="btnPrefs" class="btn icon" data-i18n-title="preferences">⚙</button>
+    </div>
+  </header>
+
+  <div class="editor-layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <input id="searchScripts" type="search" data-i18n-placeholder="searchScripts">
+        <div class="row">
+          <button id="btnNewScript" class="btn primary" data-i18n="newScript"></button>
+          <button id="btnImport" class="btn" data-i18n="importFile"></button>
+        </div>
+        <input id="fileImport" type="file" accept=".txt,.md,.json,text/plain,text/markdown,application/json" hidden multiple>
+      </div>
+      <ul id="scriptList" class="script-list"></ul>
+      <div class="sidebar-foot">
+        <button id="btnBackup" class="btn small" data-i18n="backup"></button>
+        <button id="btnRestore" class="btn small" data-i18n="restore"></button>
+      </div>
+    </aside>
+
+    <main class="editor">
+      <div id="editorEmpty" class="empty" data-i18n="noScripts"></div>
+      <div id="editorPane" hidden>
+        <div class="editor-head">
+          <input id="scriptTitle" type="text" data-i18n-placeholder="titlePlaceholder">
+          <span id="saveStatus" class="save-status"></span>
+          <button id="btnPresent" class="btn primary big">▶ <span data-i18n="present"></span></button>
+        </div>
+        <div class="toolbar">
+          <button class="btn" data-wrap="**" data-i18n-title="bold"><b>B</b></button>
+          <button class="btn" data-wrap="==" data-i18n-title="highlight"><mark style="background:#ffd54a;color:#1a1500;border-radius:3px;padding:0 3px">H</mark></button>
+          <select id="cueSelect" data-i18n-title="cue"></select>
+          <button class="btn" data-insert-line="# " data-i18n-title="heading">#</button>
+          <button class="btn" data-insert-line="---" data-i18n-title="divider">—</button>
+          <span class="spacer"></span>
+          <button id="btnAi" class="btn ai">✨ <span data-i18n="aiGenerate"></span></button>
+        </div>
+        <textarea id="scriptBody" spellcheck="true" data-i18n-placeholder="bodyPlaceholder"></textarea>
+        <div class="statsbar">
+          <span><b id="statWords">0</b> <span data-i18n="words"></span></span>
+          <span><b id="statChars">0</b> <span data-i18n="chars"></span></span>
+          <span><span data-i18n="estimated"></span>: <b id="statTime">0:00</b> · <input id="statWpm" type="number" min="40" max="400" step="5"> <span data-i18n="wpm"></span></span>
+          <span><span data-i18n="fitIn"></span> <input id="fitMinutes" type="number" min="0.5" step="0.5"> <span data-i18n="minutes"></span> → <b id="fitWpm">—</b></span>
+        </div>
+        <div class="editor-actions">
+          <button id="btnExport" class="btn small" data-i18n="exportTxt"></button>
+          <button id="btnDuplicate" class="btn small" data-i18n="duplicate"></button>
+          <button id="btnDelete" class="btn small danger" data-i18n="delete"></button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===================== TELEPROMPTER ===================== -->
+<div id="view-prompter" class="view" hidden>
+  <div id="stage" class="tp-stage">
+    <video id="cameraPreview" class="tp-camera" autoplay muted playsinline></video>
+    <div id="viewport" class="tp-viewport"><div id="content" class="tp-content"></div></div>
+    <div class="tp-dim tp-dim-top"></div>
+    <div class="tp-dim tp-dim-bottom"></div>
+    <div class="tp-reading-line"></div>
+    <div id="countdown" class="tp-countdown" hidden><span id="countdownNum">3</span></div>
+  </div>
+
+  <div id="hud" class="hud">
+    <div class="hud-top">
+      <button id="btnBack" class="btn icon" data-i18n-title="back">←</button>
+      <span id="hudTitle" class="hud-title"></span>
+      <span id="hudMode" class="badge"></span>
+      <span id="hudVoice" class="badge voice" hidden></span>
+      <span id="hudRec" class="badge rec" hidden></span>
+      <span id="hudRemote" class="badge" hidden>📱</span>
+      <span class="spacer"></span>
+      <span id="hudLiveWpm" class="hud-stat" hidden></span>
+      <span id="hudTimer" class="hud-stat"><span id="hudElapsed">0:00</span><small>/ −<span id="hudRemaining">0:00</span></small></span>
+      <button id="btnVoice" class="btn icon" data-i18n-title="voice">🎙</button>
+      <button id="btnCamera" class="btn icon" data-i18n-title="camera">📷</button>
+      <button id="btnRecord" class="btn icon" hidden data-i18n-title="record">⏺</button>
+      <button id="btnMirror" class="btn icon" data-i18n-title="mirror">⇋</button>
+      <button id="btnPip" class="btn icon" data-i18n-title="pip">⧉</button>
+      <button id="btnOutput" class="btn icon" data-i18n-title="output">🖥</button>
+      <button id="btnRemote" class="btn icon" data-i18n-title="remote">📱</button>
+      <button id="btnFullscreen" class="btn icon" data-i18n-title="fullscreen">⛶</button>
+      <button id="btnSettings" class="btn icon" data-i18n-title="settings">⚙</button>
+    </div>
+    <div class="hud-bottom">
+      <div id="progress" class="progress"><div id="progressFill"></div><div id="progressMarkers"></div></div>
+      <div class="transport">
+        <button id="btnRestart" class="btn icon" data-i18n-title="restart">⟲</button>
+        <button id="btnSlower" class="btn icon" data-i18n-title="slower">−</button>
+        <button id="btnPlay" class="btn icon play" data-i18n-title="play">▶</button>
+        <button id="btnFaster" class="btn icon" data-i18n-title="faster">+</button>
+        <span id="hudSpeed" class="speed">150 ppm</span>
+      </div>
+    </div>
+  </div>
+
+  <aside id="settingsPanel" class="panel" hidden>
+    <div class="panel-head"><strong data-i18n="settings"></strong><button id="btnCloseSettings" class="btn icon" data-i18n-title="close">✕</button></div>
+
+    <h3 data-i18n="mode"></h3>
+    <div class="segmented" id="modeSeg">
+      <button data-mode="fixed" data-i18n="modeFixed"></button>
+      <button data-mode="timed" data-i18n="modeTimed"></button>
+      <button data-mode="voice" data-i18n="modeVoice"></button>
+      <button data-mode="manual" data-i18n="modeManual"></button>
+    </div>
+    <div class="field" id="fieldWpm">
+      <label><span data-i18n="speed"></span><output id="outWpm"></output></label>
+      <input type="range" data-setting="wpm" min="40" max="400" step="5">
+    </div>
+    <div class="field" id="fieldTimed" hidden>
+      <label><span data-i18n="targetDuration"></span><output id="outTimed"></output></label>
+      <input type="range" data-setting="targetMinutes" min="0.5" max="60" step="0.5">
+    </div>
+    <div class="field" id="fieldVoice" hidden>
+      <label><span data-i18n="voiceLang"></span></label>
+      <select data-setting="voiceLang" id="voiceLangSelect"></select>
+      <div class="field inline"><label><input type="checkbox" data-setting="voiceFallback"> <span data-i18n="voiceFallback"></span></label></div>
+    </div>
+
+    <h3 data-i18n="font"></h3>
+    <div class="field">
+      <label><span data-i18n="fontSize"></span><output id="outFontSize"></output></label>
+      <input type="range" data-setting="fontSize" min="20" max="160" step="2">
+    </div>
+    <div class="field">
+      <label><span data-i18n="lineHeight"></span><output id="outLineHeight"></output></label>
+      <input type="range" data-setting="lineHeight" min="1" max="2.4" step="0.05">
+    </div>
+    <div class="field">
+      <label><span data-i18n="textWidth"></span><output id="outTextWidth"></output></label>
+      <input type="range" data-setting="textWidth" min="40" max="100" step="2">
+    </div>
+    <div class="field inline">
+      <label data-i18n="font"></label>
+      <select data-setting="fontFamily">
+        <option value="system">Sans (sistema)</option>
+        <option value="rounded">Rounded</option>
+        <option value="condensed">Condensed</option>
+        <option value="serif">Serif</option>
+        <option value="mono">Mono</option>
+      </select>
+    </div>
+    <div class="field inline">
+      <label data-i18n="align"></label>
+      <select data-setting="align">
+        <option value="left" data-i18n="alignLeft"></option>
+        <option value="center" data-i18n="alignCenter"></option>
+      </select>
+    </div>
+    <div class="field inline"><label><input type="checkbox" data-setting="uppercase"> <span data-i18n="uppercase"></span></label></div>
+    <div class="field inline"><label><input type="checkbox" data-setting="boldAll"> <span data-i18n="boldAll"></span></label></div>
+    <div class="field inline"><label data-i18n="textColor"></label><input type="color" data-setting="textColor"></div>
+    <div class="field inline"><label data-i18n="bgColor"></label><input type="color" data-setting="bgColor"></div>
+
+    <h3 data-i18n="readingLine"></h3>
+    <div class="field">
+      <label><span data-i18n="readingLine"></span><output id="outReadingLine"></output></label>
+      <input type="range" data-setting="readingLine" min="10" max="80" step="1">
+    </div>
+    <div class="field inline"><label><input type="checkbox" data-setting="showReadingLine"> <span data-i18n="showReadingLine"></span></label></div>
+    <div class="field">
+      <label><span data-i18n="dim"></span><output id="outDim"></output></label>
+      <input type="range" data-setting="dim" min="0" max="90" step="5">
+    </div>
+
+    <h3 data-i18n="mirror"></h3>
+    <div class="field inline"><label><input type="checkbox" data-setting="mirrorH"> <span data-i18n="mirrorH"></span></label></div>
+    <div class="field inline"><label><input type="checkbox" data-setting="mirrorV"> <span data-i18n="mirrorV"></span></label></div>
+
+    <h3 data-i18n="camera"></h3>
+    <div class="field">
+      <label><span data-i18n="cameraOpacity"></span><output id="outCameraOpacity"></output></label>
+      <input type="range" data-setting="cameraOpacity" min="20" max="100" step="5">
+    </div>
+    <div class="field inline"><label><input type="checkbox" data-setting="cameraMirror"> <span data-i18n="cameraMirror"></span></label></div>
+
+    <h3 data-i18n="countdown"></h3>
+    <div class="field">
+      <label><span data-i18n="countdown"></span><output id="outCountdown"></output></label>
+      <input type="range" data-setting="countdown" min="0" max="10" step="1">
+    </div>
+    <div class="field inline"><label><input type="checkbox" data-setting="showTimer"> <span data-i18n="showTimer"></span></label></div>
+    <div class="field inline"><label><input type="checkbox" data-setting="showProgress"> <span data-i18n="showProgress"></span></label></div>
+  </aside>
+</div>
+
+<!-- ===================== DIÁLOGOS ===================== -->
+<dialog id="dlgRemote">
+  <div class="dlg-head"><h2 data-i18n="remote"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <p class="hint" data-i18n="remoteHelp"></p>
+    <div id="remoteQr" class="qr"></div>
+    <div><div class="hint" style="text-align:center" data-i18n="remoteCode"></div><div id="remoteCode" class="code-big">······</div></div>
+    <div class="link-box"><input id="remoteLink" type="text" readonly><button id="btnCopyLink" class="btn">📋</button></div>
+    <div id="remoteStatus" class="status"></div>
+  </div>
+</dialog>
+
+<dialog id="dlgOutput">
+  <div class="dlg-head"><h2 data-i18n="output"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <p class="hint" data-i18n="outputHelp"></p>
+    <button id="btnOpenOutput" class="btn primary">🖥 <span data-i18n="output"></span></button>
+  </div>
+</dialog>
+
+<dialog id="dlgAi">
+  <div class="dlg-head"><h2 data-i18n="aiTitle"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <div class="field"><label data-i18n="aiTopic"></label><textarea id="aiTopic" rows="3" data-i18n-placeholder="aiTopicPlaceholder"></textarea></div>
+    <div class="field inline"><label data-i18n="aiDuration"></label><select id="aiMinutes">
+      <option value="0.5">30 s</option><option value="1">1 min</option><option value="2">2 min</option><option value="3" selected>3 min</option>
+      <option value="5">5 min</option><option value="8">8 min</option><option value="10">10 min</option><option value="15">15 min</option>
+    </select></div>
+    <div class="field inline"><label data-i18n="aiTone"></label><select id="aiTone">
+      <option value="casual" data-i18n="toneCasual"></option><option value="professional" data-i18n="toneProfessional"></option>
+      <option value="inspiring" data-i18n="toneInspiring"></option><option value="educational" data-i18n="toneEducational"></option>
+      <option value="sales" data-i18n="toneSales"></option>
+    </select></div>
+    <div class="field"><label data-i18n="aiKey"></label><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+    <pre id="aiPreview" hidden></pre>
+    <div id="aiStatus" class="status"></div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" data-close data-i18n="cancel"></button>
+    <button id="btnAiGenerate" class="btn ai" data-i18n="generate"></button>
+  </div>
+</dialog>
+
+<dialog id="dlgPrefs">
+  <div class="dlg-head"><h2 data-i18n="preferences"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <div class="field inline"><label data-i18n="language"></label><select id="prefLang"></select></div>
+    <div class="field inline"><label data-i18n="theme"></label><select id="prefTheme">
+      <option value="dark" data-i18n="themeDark"></option><option value="light" data-i18n="themeLight"></option>
+    </select></div>
+    <div class="field"><label data-i18n="aiKey"></label><input id="prefAiKey" type="password" placeholder="sk-ant-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
+  </div>
+  <div class="dlg-foot"><button class="btn primary" data-close data-i18n="close"></button></div>
+</dialog>
+
+<dialog id="dlgShortcuts">
+  <div class="dlg-head"><h2 data-i18n="shortcuts"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <table class="shortcut-table">
+      <tr><td><kbd>Espaço</kbd></td><td data-i18n="shSpace"></td></tr>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td data-i18n="shArrows"></td></tr>
+      <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td data-i18n="shLeftRight"></td></tr>
+      <tr><td><kbd>PgUp</kbd> / <kbd>PgDn</kbd></td><td data-i18n="shPage"></td></tr>
+      <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td data-i18n="shHomeEnd"></td></tr>
+      <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td data-i18n="shPlusMinus"></td></tr>
+      <tr><td><kbd>F</kbd></td><td data-i18n="shF"></td></tr>
+      <tr><td><kbd>M</kbd></td><td data-i18n="shM"></td></tr>
+      <tr><td><kbd>R</kbd></td><td data-i18n="shR"></td></tr>
+      <tr><td><kbd>V</kbd></td><td data-i18n="shV"></td></tr>
+      <tr><td><kbd>C</kbd></td><td data-i18n="shC"></td></tr>
+      <tr><td><kbd>Esc</kbd></td><td data-i18n="shEsc"></td></tr>
+    </table>
+  </div>
+</dialog>
+
+<dialog id="dlgReport">
+  <div class="dlg-head"><h2 data-i18n="reportTitle"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <div class="report-grid">
+      <div class="report-card"><div class="label" data-i18n="reportDuration"></div><div class="value" id="repDuration">0:00</div></div>
+      <div class="report-card"><div class="label" data-i18n="reportWords"></div><div class="value" id="repWords">0</div></div>
+      <div class="report-card"><div class="label" data-i18n="reportAvgWpm"></div><div class="value" id="repWpm">0</div></div>
+      <div class="report-card"><div class="label" data-i18n="reportPauses"></div><div class="value" id="repPauses">0</div></div>
+    </div>
+    <div class="report-tip"><b data-i18n="reportTip"></b>: <span id="repTip"></span></div>
+  </div>
+  <div class="dlg-foot">
+    <button id="btnReportEditor" class="btn" data-i18n="backToEditor"></button>
+    <button id="btnReportAgain" class="btn primary" data-i18n="again"></button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<div id="dropOverlay" class="drop-overlay" hidden data-i18n="dropHere"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

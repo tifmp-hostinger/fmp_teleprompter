@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FMP Teleprompter — Controle remoto</title>
+  <meta name="theme-color" content="#0b0d12">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main class="remote-page">
+    <h1><img src="icons/icon.svg" alt=""><span data-i18n="remoteTitle"></span></h1>
+
+    <section id="connectPane">
+      <p class="hint" data-i18n="remoteEnterCode"></p>
+      <input id="codeInput" class="code-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123">
+      <button id="btnConnect" class="btn primary big" style="width:100%;margin-top:12px" data-i18n="connect"></button>
+      <div id="status" class="status" style="margin-top:12px"></div>
+    </section>
+
+    <section id="controlPane" hidden>
+      <div class="remote-stats"><span id="rTitle"></span><span id="rStatus" class="status ok" data-i18n="connected"></span></div>
+      <div class="remote-context"><span id="rContext">…</span></div>
+      <div class="progress" id="rProgress" style="margin:12px 0"><div id="rFill" style="position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent);border-radius:999px"></div></div>
+      <div class="remote-stats"><span><span data-i18n="elapsed"></span> <b id="rElapsed">0:00</b></span><span><b id="rSpeed">150</b> <span id="rSpeedUnit" data-i18n="wpm"></span></span><span><span data-i18n="remaining"></span> <b id="rRemaining">0:00</b></span></div>
+      <div class="remote-grid" style="margin-top:12px">
+        <button class="btn" data-cmd='{"a":"seek","lines":-4}'>↑<small data-i18n="shLeftRight"></small></button>
+        <button class="btn" data-cmd='{"a":"restart"}'>⟲<small data-i18n="restart"></small></button>
+        <button class="btn" data-cmd='{"a":"seek","lines":4}'>↓<small data-i18n="shLeftRight"></small></button>
+        <button id="rPlay" class="btn primary play" data-cmd='{"a":"toggle"}'>▶</button>
+        <button class="btn" data-cmd='{"a":"speed","d":-10}'>−<small data-i18n="slower"></small></button>
+        <button class="btn" data-cmd='{"a":"font","d":-4}'>A−<small data-i18n="fontSize"></small></button>
+        <button class="btn" data-cmd='{"a":"font","d":4}'>A+<small data-i18n="fontSize"></small></button>
+        <button class="btn" data-cmd='{"a":"speed","d":10}'>+<small data-i18n="faster"></small></button>
+        <button class="btn" data-cmd='{"a":"mode","v":"fixed"}'>⏱<small data-i18n="modeFixed"></small></button>
+        <button class="btn" data-cmd='{"a":"mode","v":"voice"}'>🎙<small data-i18n="modeVoice"></small></button>
+        <button class="btn" data-cmd='{"a":"mode","v":"manual"}'>✋<small data-i18n="modeManual"></small></button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script type="module">
+    import { RemoteClient, normalizeCode } from './js/remote.js';
+    import { applyTranslations, t } from './js/i18n.js';
+    import { formatTime } from './js/script-parser.js';
+
+    applyTranslations(document);
+    const $ = (s) => document.querySelector(s);
+    const params = new URLSearchParams(location.search);
+    const codeInput = $('#codeInput');
+    codeInput.value = normalizeCode(params.get('code') || '');
+    let client = null;
+    let wakeLock = null;
+
+    async function connect() {
+      const code = normalizeCode(codeInput.value);
+      if (code.length < 6) return;
+      client?.close();
+      $('#status').className = 'status'; $('#status').textContent = t('connecting');
+      client = new RemoteClient(code, {
+        onOpen: async () => {
+          $('#connectPane').hidden = true; $('#controlPane').hidden = false;
+          history.replaceState(null, '', `?code=${code}`);
+          try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* ignore */ }
+        },
+        onState: (s) => {
+          $('#rTitle').textContent = s.title || '';
+          $('#rContext').textContent = s.context || '…';
+          $('#rFill').style.width = `${(s.progress || 0) * 100}%`;
+          $('#rElapsed').textContent = formatTime(s.elapsed);
+          $('#rRemaining').textContent = formatTime(s.remaining);
+          $('#rSpeed').textContent = s.mode === 'timed' ? '⏱' : s.wpm;
+          $('#rSpeedUnit').hidden = s.mode === 'timed';
+          $('#rPlay').textContent = s.playing ? '❚❚' : '▶';
+        },
+        onClose: () => { $('#rStatus').className = 'status err'; $('#rStatus').textContent = t('disconnected'); },
+        onError: () => {
+          if ($('#controlPane').hidden) { $('#status').className = 'status err'; $('#status').textContent = t('notFound'); }
+        },
+      });
+      client.connect();
+    }
+
+    $('#btnConnect').addEventListener('click', connect);
+    codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+    codeInput.addEventListener('input', () => { codeInput.value = normalizeCode(codeInput.value); });
+    document.querySelectorAll('[data-cmd]').forEach((b) => {
+      b.addEventListener('click', () => { client?.send(JSON.parse(b.dataset.cmd)); if (navigator.vibrate) navigator.vibrate(10); });
+    });
+    $('#rProgress').addEventListener('click', (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      client?.send({ a: 'progress', p: (e.clientX - r.left) / r.width });
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && wakeLock?.released) {
+        try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* ignore */ }
+      }
+    });
+    if (codeInput.value.length === 6) connect();
+  </script>
+</body>
+</html>
