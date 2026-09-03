@@ -9,14 +9,20 @@ RUN apk add --no-cache nodejs
 # Configuração do servidor (o entrypoint oficial faz envsubst de ${PORT}).
 COPY docker/default.conf.template /etc/nginx/templates/default.conf.template
 
-# Entrypoints: proxy de IA e config.js de runtime.
-COPY docker/30-fmp-ai-proxy.sh /docker-entrypoint.d/30-fmp-ai-proxy.sh
+# Entrypoints: servidor da plataforma e config.js de runtime.
+COPY docker/30-fmp-server.sh /docker-entrypoint.d/30-fmp-server.sh
 COPY docker/40-fmp-runtime-config.sh /docker-entrypoint.d/40-fmp-runtime-config.sh
-RUN chmod +x /docker-entrypoint.d/30-fmp-ai-proxy.sh /docker-entrypoint.d/40-fmp-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/30-fmp-server.sh /docker-entrypoint.d/40-fmp-runtime-config.sh
 
-# Proxy da IA (guarda a chave fora do navegador).
+# Servidor: contas, biblioteca compartilhada e gerador de IA.
+# A chave da IA e as senhas ficam aqui dentro, nunca no navegador.
 COPY server/ /app/server/
 COPY js/ai-shared.js /app/js/ai-shared.js
+
+# Onde os dados da equipe ficam. Monte um volume neste caminho, senão o
+# arquivo é perdido a cada deploy.
+ENV DATA_FILE=/data/barzi.json
+VOLUME ["/data"]
 
 # Arquivos do app.
 WORKDIR /usr/share/nginx/html

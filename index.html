@@ -21,11 +21,34 @@
 </head>
 <body>
 
+<!-- ===================== LOGIN ===================== -->
+<div id="view-login" class="view" hidden>
+  <div class="login-card">
+    <img src="icons/icon.svg" alt="">
+    <h1 data-i18n="appName"></h1>
+    <p class="hint" data-i18n="loginSubtitle"></p>
+    <form id="loginForm" autocomplete="on">
+      <label class="field">
+        <span data-i18n="email"></span>
+        <input id="loginEmail" type="email" autocomplete="username" required inputmode="email" autocapitalize="none">
+      </label>
+      <label class="field">
+        <span data-i18n="password"></span>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button id="btnLogin" class="btn primary big" type="submit" data-i18n="signIn"></button>
+    </form>
+    <div id="loginStatus" class="status err"></div>
+  </div>
+</div>
+
 <!-- ===================== EDITOR / BIBLIOTECA ===================== -->
 <div id="view-editor" class="view">
   <header class="topbar">
     <div class="brand"><img src="icons/icon.svg" alt=""><span data-i18n="appName"></span><small data-i18n="tagline"></small></div>
     <div class="topbar-actions">
+      <span id="syncStatus" class="sync-status" hidden><span class="sync-dot"></span><span id="syncText"></span></span>
+      <button id="btnAccount" class="btn small" hidden></button>
       <button id="btnInstall" class="btn small" hidden data-i18n="installApp"></button>
       <button id="btnShortcuts" class="btn icon" data-i18n-title="shortcuts">⌨</button>
       <button id="btnPrefs" class="btn icon" data-i18n-title="preferences">⚙</button>
@@ -275,6 +298,48 @@
     <div class="field"><label data-i18n="aiKey"></label><input id="prefAiKey" type="password" placeholder="sk-…" autocomplete="off"><div class="hint" data-i18n="aiKeyHelp"></div></div>
   </div>
   <div class="dlg-foot"><button class="btn primary" data-close data-i18n="close"></button></div>
+</dialog>
+
+<dialog id="dlgAccount">
+  <div class="dlg-head"><h2 data-i18n="account"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <div class="account-id"><b id="accountName"></b><span id="accountEmail" class="hint"></span><span id="accountRole" class="badge"></span></div>
+    <form id="passwordForm">
+      <h3 data-i18n="changePassword"></h3>
+      <label class="field"><span data-i18n="currentPassword"></span><input id="pwCurrent" type="password" autocomplete="current-password" required></label>
+      <label class="field"><span data-i18n="newPassword"></span><input id="pwNext" type="password" autocomplete="new-password" required minlength="8"></label>
+      <button class="btn" type="submit" data-i18n="changePassword"></button>
+      <div id="pwStatus" class="status"></div>
+    </form>
+  </div>
+  <div class="dlg-foot">
+    <button id="btnManageUsers" class="btn" hidden data-i18n="accountsTitle"></button>
+    <button id="btnSignOut" class="btn danger" data-i18n="signOut"></button>
+  </div>
+</dialog>
+
+<dialog id="dlgUsers">
+  <div class="dlg-head"><h2 data-i18n="accountsTitle"></h2><button class="btn icon" data-close data-i18n-title="close">✕</button></div>
+  <div class="dlg-body">
+    <p class="hint" data-i18n="accountsHelp"></p>
+    <ul id="userList" class="user-list"></ul>
+    <form id="userForm">
+      <h3 data-i18n="newAccount"></h3>
+      <div class="user-form-grid">
+        <label class="field"><span data-i18n="nameLabel"></span><input id="newUserName" type="text" required></label>
+        <label class="field"><span data-i18n="email"></span><input id="newUserEmail" type="email" required inputmode="email" autocapitalize="none"></label>
+        <label class="field"><span data-i18n="password"></span><input id="newUserPassword" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label class="field"><span data-i18n="role"></span>
+          <select id="newUserRole">
+            <option value="user" data-i18n="roleUser"></option>
+            <option value="admin" data-i18n="roleAdmin"></option>
+          </select>
+        </label>
+      </div>
+      <button class="btn primary" type="submit" data-i18n="create"></button>
+      <div id="userStatus" class="status"></div>
+    </form>
+  </div>
 </dialog>
 
 <dialog id="dlgInstall">

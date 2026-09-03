@@ -1,6 +1,8 @@
 # FMP Barzi Prompter
 
-Teleprompter profissional **100 % web**, sem instalação, sem conta e sem servidor: abre em qualquer navegador (desktop, tablet, celular), funciona offline como PWA e pode ser hospedado em qualquer hosting estático (Hostinger, GitHub Pages, Netlify…).
+Teleprompter profissional **100 % web**: abre em qualquer navegador (desktop, tablet, celular), funciona offline como PWA e pode ser hospedado em qualquer hosting estático (Hostinger, GitHub Pages, Netlify…).
+
+Roda em dois modos. **Local**, sem servidor nenhum, com os roteiros no navegador de cada pessoa. Ou **com contas**, onde a equipe entra com email e senha e compartilha a mesma biblioteca de roteiros entre todos os aparelhos. O segundo modo é ligado por variáveis de ambiente, sem mudar nada no código.
 
 Foi desenhado a partir do que os líderes do mercado oferecem (Teleprompter.com, PromptSmart, BIGVU, Speakflow, CuePrompter, Elegant Teleprompter) e vai além em alguns pontos.
 
@@ -29,6 +31,7 @@ Foi desenhado a partir do que os líderes do mercado oferecem (Teleprompter.com,
 | Velocidade por arrasto (sem ficar clicando) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Tema preto e branco puro | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Auto-hospedável (Docker / EasyPanel) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Biblioteca compartilhada pela equipe, com login | Pago | ❌ | Pago | Pago | ❌ | ✅ incluído |
 | Configurações por roteiro (velocidade, fonte) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Preço | Assinatura | Assinatura | Assinatura | Assinatura | Grátis/limitado | **Grátis, código aberto** |
 
@@ -106,6 +109,17 @@ Variáveis de ambiente:
 
 Sem `PEER_HOST` o controle remoto usa o broker público do PeerJS. Ele só troca as mensagens de conexão; os comandos viajam direto entre os aparelhos por WebRTC.
 
+### Contas da equipe
+
+| Variável | Padrão | Para que serve |
+|---|---|---|
+| `ADMIN_EMAIL` | vazio | Email do administrador. Preencher ativa o login e a biblioteca compartilhada |
+| `ADMIN_PASSWORD` | vazio | Senha do administrador, aplicada a cada subida do contêiner |
+| `ADMIN_NAME` | parte do email | Nome exibido do administrador |
+| `DATA_FILE` | `/data/barzi.json` | Onde ficam contas e roteiros |
+
+Deixando `ADMIN_EMAIL` e `ADMIN_PASSWORD` em branco, o app volta ao modo local: sem login, cada pessoa com os roteiros no próprio navegador.
+
 ### Chave de IA no ambiente (OpenAI ou Anthropic)
 
 | Variável | Padrão | Para que serve |
@@ -127,13 +141,51 @@ O modelo não é fixo no código: o proxy consulta os modelos da sua conta e esc
 1. No EasyPanel, crie um **App** e aponte a origem para este repositório do GitHub, na branch desejada.
 2. Em **Build**, escolha **Dockerfile**. O arquivo já está na raiz do projeto.
 3. Em **Domains**, adicione o seu domínio e defina a porta do contêiner como **80**. Deixe o HTTPS ligado, o EasyPanel emite o certificado Let's Encrypt.
-4. Clique em **Deploy**.
+4. Em **Mounts** (ou *Volumes*), crie um volume apontando para **`/data`**. É onde ficam as contas e os roteiros da equipe; sem isso eles somem a cada deploy.
+5. Em **Environment**, cole as variáveis que quiser usar:
+
+   ```
+   ADMIN_EMAIL=voce@fmp.com.br
+   ADMIN_PASSWORD=uma-senha-boa
+   OPENAI_API_KEY=sk-...
+   ```
+
+6. Clique em **Deploy** e entre no site com o email e a senha acima.
 
 O HTTPS não é opcional: sem ele o navegador bloqueia câmera, microfone, rolagem por voz, janela flutuante e a instalação como PWA.
 
-Não há banco de dados nem volumes a configurar. Os roteiros ficam no `localStorage` do navegador de cada usuário, e o botão **Backup (.json)** exporta tudo.
+Sem `ADMIN_EMAIL` não há nada para guardar no servidor: os roteiros ficam no navegador de cada pessoa e o botão **Backup (.json)** exporta tudo. Com contas ativadas, o volume em `/data` guarda a biblioteca da equipe.
 
 Se quiser o controle remoto sem depender do broker público, suba também o serviço `peerjs` (já descrito no `docker-compose.yml`), publique-o em um subdomínio com HTTPS e preencha `PEER_HOST` no app. Nesse caso, acrescente esse domínio ao `connect-src` da CSP em `docker/default.conf.template`.
+
+## Contas da equipe e biblioteca compartilhada
+
+Sem configuração, cada pessoa tem os roteiros só no próprio navegador. Ligando as contas, a equipe passa a dividir **uma única biblioteca**: todo mundo vê e edita os mesmos roteiros, de qualquer aparelho, e a lista mostra quem alterou cada um por último.
+
+Para ligar, basta definir duas variáveis de ambiente:
+
+```
+ADMIN_EMAIL=voce@fmp.com.br
+ADMIN_PASSWORD=uma-senha-boa
+```
+
+Na primeira subida o administrador é criado com esses dados. Depois é só entrar no app, abrir o seu nome no topo → **Contas da equipe** e cadastrar as outras pessoas. Ninguém se cadastra sozinho: quem não tem conta criada por você não entra.
+
+Como funciona no dia a dia:
+
+- Os roteiros continuam salvos no aparelho, então o app **segue funcionando offline**. O que muda é que ele sobe e desce as alterações quando há internet.
+- A sincronização é automática: alguns segundos depois de você parar de digitar, ao voltar para a aba e a cada minuto. O indicador no topo mostra o estado.
+- Editou o mesmo roteiro em dois lugares? Vence a alteração mais recente.
+- Excluir um roteiro remove para toda a equipe.
+- Ao sair da conta, a biblioteca é apagada daquele aparelho — importante quando o computador é compartilhado.
+
+Segurança: as senhas são guardadas com hash scrypt (nunca em texto), a sessão fica num cookie `HttpOnly` que o JavaScript não lê, e o login tem limite de tentativas. Use HTTPS, senão a sessão trafega aberta.
+
+### Onde os dados ficam
+
+Num único arquivo JSON dentro do contêiner, em `/data/barzi.json`, com escrita atômica. Não há banco para instalar, criar ou administrar — o arquivo nasce sozinho na primeira execução.
+
+**Monte um volume em `/data`**, senão os dados são perdidos a cada deploy. O backup é copiar esse arquivo. Se um dia a equipe crescer, migrar para SQLite ou Postgres mexe só em `server/db.mjs`.
 
 ## Instalar no celular (PWA)
 
@@ -169,7 +221,7 @@ A velocidade não depende mais de ficar clicando em − e +: é um controle que 
 2. Garanta HTTPS ativo (Let's Encrypt no painel da Hostinger).
 3. Acesse `https://seudominio/teleprompter/` — o app já é instalável como PWA.
 
-Nada de banco de dados ou PHP: tudo fica no navegador do usuário (`localStorage`).
+Nesse tipo de hospedagem não há servidor para rodar as contas, então o app funciona no modo local: tudo fica no navegador de cada pessoa (`localStorage`). Para login e biblioteca compartilhada, use o Docker.
 
 ## Atalhos de teclado
 
@@ -204,11 +256,17 @@ js/camera.js          getUserMedia + MediaRecorder
 js/remote.js          PeerJS (WebRTC) + BroadcastChannel
 js/pip.js             Document Picture-in-Picture
 js/ai.js              geração de roteiro (API Anthropic, streaming)
+js/api.js             cliente da API (contas e biblioteca)
+js/sync.js            sincronização dos roteiros entre aparelhos
 js/ai-shared.js       prompt e escolha de modelo (navegador + servidor)
 js/slider.js          controle de velocidade por arrasto
 js/i18n.js            traduções pt-BR / en / es
 js/storage.js         localStorage (roteiros, ajustes, sessões)
-server/ai-proxy.mjs   proxy da IA (mantém a chave fora do navegador)
+server/index.mjs      servidor da plataforma (contas, biblioteca e IA)
+server/db.mjs         armazenamento em arquivo, com escrita atômica
+server/auth.mjs       senhas com scrypt e sessões em cookie
+server/api.mjs        rotas de contas e de roteiros
+server/ai.mjs         gerador de IA (mantém a chave fora do navegador)
 config.js             configuração de runtime (servidor PeerJS próprio)
 sw.js, manifest.webmanifest, icons/   PWA
 tests/                testes unitários (node --test)

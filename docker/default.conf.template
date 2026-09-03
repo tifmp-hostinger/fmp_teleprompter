@@ -1,6 +1,13 @@
 # FMP Barzi Prompter — configuração do nginx dentro do contêiner.
 # ${PORT} é substituído pelo entrypoint oficial da imagem nginx.
 
+# Protocolo original: o EasyPanel/Traefik encerra o HTTPS antes do nginx, e o
+# cookie de sessão só ganha o atributo Secure quando a origem foi HTTPS.
+map $http_x_forwarded_proto $fmp_proto {
+    default  $scheme;
+    "~."     $http_x_forwarded_proto;
+}
+
 # Cache por tipo de conteúdo. Os arquivos não têm hash no nome, então o HTML,
 # o CSS e o JS revalidam sempre (ETag devolve 304, é barato) para que um novo
 # deploy apareça na hora. Imagens e fontes podem ficar em cache por uma semana.
@@ -50,13 +57,14 @@ server {
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://*.peerjs.com wss://*.peerjs.com blob:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; object-src 'none'" always;
 
     # --- Rotas --------------------------------------------------------------
-    # Gerador de roteiro com IA. Só responde se houver chave no ambiente;
-    # sem o proxy no ar o nginx devolve 502 e o app pede a chave no navegador.
+    # API da plataforma: contas, biblioteca compartilhada e gerador de IA.
+    # Sem o servidor no ar o nginx devolve 502 e o app volta ao modo local.
     location /api/ {
         proxy_pass http://127.0.0.1:8787;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $fmp_proto;
         proxy_buffering off;          # o roteiro chega em streaming
         proxy_read_timeout 300s;
         proxy_connect_timeout 5s;

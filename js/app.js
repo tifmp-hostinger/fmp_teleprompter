@@ -2,9 +2,14 @@
 import { parseScript, estimateSeconds, wpmForDuration, formatTime, findVoicePosition, stripMarkup } from './script-parser.js';
 import { t, setLang, getLang, applyTranslations, LANGS, sampleScript } from './i18n.js';
 import {
-  loadScripts, createScript, updateScript, deleteScript, duplicateScript, getScript,
+  loadScripts, saveScripts, createScript, updateScript, deleteScript, duplicateScript, getScript,
   loadSettings, saveSettings, hasSavedSettings, addSession, exportBackup, importBackup, loadAiKey, saveAiKey,
+  userName, resetSyncState,
 } from './storage.js';
+import {
+  authState, login, logout, changePassword, listUsers, createUser, deleteUser, clearAuthCache,
+} from './api.js';
+import { syncNow } from './sync.js';
 import { Prompter } from './prompter.js';
 import { VoiceTracker, VOICE_LANGS } from './voice.js';
 import { CameraRig } from './camera.js';
@@ -24,6 +29,8 @@ let scripts = loadScripts();
 let currentId = null;
 let parsed = parseScript('');
 let saveTimer = 0;
+let authEnabled = false;   // o servidor tem contas ativadas?
+let currentUser = null;
 
 const els = {
   viewEditor: $('#view-editor'),
@@ -116,8 +123,12 @@ function renderList() {
     li.className = 'script-item' + (s.id === currentId ? ' active' : '');
     const p = parseScript(s.body);
     const wpm = s.wpm || settings.wpm;
-    li.innerHTML = `<div class="title"></div><div class="meta"><span>${p.wordCount} ${t('words')}</span><span>≈ ${formatTime(estimateSeconds(p.wordCount, wpm))}</span><span>${new Date(s.updatedAt).toLocaleDateString(getLang())}</span></div>`;
+    li.innerHTML = `<div class="title"></div><div class="meta"><span>${p.wordCount} ${t('words')}</span><span>≈ ${formatTime(estimateSeconds(p.wordCount, wpm))}</span><span>${new Date(s.updatedAt).toLocaleDateString(getLang())}</span><span class="author"></span></div>`;
     $('.title', li).textContent = s.title || t('untitled');
+    if (authEnabled && s.updatedBy) {
+      const quem = s.updatedBy === currentUser?.id ? t('you') : userName(s.updatedBy);
+      if (quem) $('.author', li).textContent = t('editedBy', { name: quem });
+    }
     li.addEventListener('click', () => selectScript(s.id));
     return li;
   }));
@@ -156,6 +167,7 @@ function scheduleSave() {
     updateScript(currentId, { title: els.title.value, body: els.body.value, wpm: Number(els.statWpm.value) || null });
     els.saveStatus.textContent = t('saved');
     renderList();
+    scheduleSync();
   }, 400);
 }
 
@@ -182,6 +194,7 @@ $('#btnDelete').addEventListener('click', () => {
   deleteScript(currentId);
   scripts = loadScripts();
   selectScript(scripts[0]?.id || null);
+  scheduleSync();
 });
 
 $('#btnExport').addEventListener('click', () => {
@@ -211,6 +224,7 @@ async function importFiles(files) {
   }
   scripts = loadScripts();
   selectScript(last ? last.id : (currentId || scripts[0]?.id));
+  scheduleSync();
 }
 
 // Arrastar e soltar arquivos
@@ -942,7 +956,225 @@ $('#btnReportEditor').addEventListener('click', () => { dlgReport.close(); if (!
 // ---------------------------------------------------------------------------
 // Inicialização
 // ---------------------------------------------------------------------------
-function init() {
+// ---------------------------------------------------------------------------
+// Contas e sincronização
+// ---------------------------------------------------------------------------
+const viewLogin = $('#view-login');
+
+function showLogin() {
+  viewLogin.hidden = false;
+  els.viewEditor.hidden = true;
+  els.viewPrompter.hidden = true;
+  $('#syncStatus').hidden = true;
+  $('#btnAccount').hidden = true;
+  $('#loginEmail').focus();
+}
+
+function setSyncStatus(status) {
+  const el = $('#syncStatus');
+  el.hidden = !authEnabled;
+  el.className = `sync-status ${status}`;
+  const key = { syncing: 'syncing', synced: 'synced', offline: 'syncOffline', error: 'syncSignedOut' }[status];
+  $('#syncText').textContent = t(key || 'synced');
+}
+
+/** A sessão caiu no meio do uso: volta para o login sem perder o que está salvo. */
+function handleSignedOut() {
+  currentUser = null;
+  clearAuthCache();
+  setSyncStatus('error');
+  showLogin();
+}
+
+let syncTimer = 0;
+let syncDebounce = 0;
+
+async function runSync() {
+  if (!authEnabled || !currentUser) return;
+  try {
+    const r = await syncNow({ onStatus: setSyncStatus });
+    if (r?.pulled) { renderList(); refreshOpenScript(); }
+  } catch (err) {
+    if (err.status === 401) handleSignedOut();
+  }
+}
+
+/** Depois de digitar, espera o texto assentar antes de subir. */
+function scheduleSync() {
+  if (!authEnabled) return;
+  clearTimeout(syncDebounce);
+  syncDebounce = setTimeout(runSync, 2500);
+}
+
+function startSyncLoop() {
+  clearInterval(syncTimer);
+  syncTimer = setInterval(runSync, 60_000);
+  window.addEventListener('online', runSync);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') runSync();
+  });
+}
+
+/** Traz para a tela o que outra pessoa alterou, sem atrapalhar quem digita. */
+function refreshOpenScript() {
+  if (!currentId) return;
+  const s = getScript(currentId);
+  if (!s) { selectScript(loadScripts()[0]?.id || null); return; }
+  if (document.activeElement === els.body || document.activeElement === els.title) return;
+  if (els.body.value !== s.body || els.title.value !== s.title) {
+    els.title.value = s.title || '';
+    els.body.value = s.body || '';
+    updateStats();
+  }
+}
+
+function updateAccountUi() {
+  $('#btnAccount').hidden = !(authEnabled && currentUser);
+  if (currentUser) $('#btnAccount').textContent = currentUser.name;
+  $('#syncStatus').hidden = !authEnabled;
+}
+
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#btnLogin');
+  btn.disabled = true;
+  btn.textContent = t('loginBusy');
+  $('#loginStatus').textContent = '';
+  try {
+    currentUser = await login($('#loginEmail').value.trim(), $('#loginPassword').value);
+    authEnabled = true;
+    $('#loginPassword').value = '';
+    await startApp();
+  } catch (err) {
+    $('#loginStatus').textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t('signIn');
+  }
+});
+
+$('#btnAccount').addEventListener('click', () => {
+  if (!currentUser) return;
+  $('#accountName').textContent = currentUser.name;
+  $('#accountEmail').textContent = currentUser.email;
+  $('#accountRole').textContent = t(currentUser.role === 'admin' ? 'roleAdmin' : 'roleUser');
+  $('#btnManageUsers').hidden = currentUser.role !== 'admin';
+  $('#pwStatus').textContent = '';
+  $('#dlgAccount').showModal();
+});
+
+$('#passwordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = $('#pwStatus');
+  status.className = 'status';
+  try {
+    await changePassword($('#pwCurrent').value, $('#pwNext').value);
+    status.className = 'status ok';
+    status.textContent = t('passwordChanged');
+    $('#pwCurrent').value = '';
+    $('#pwNext').value = '';
+  } catch (err) {
+    status.className = 'status err';
+    status.textContent = err.message;
+  }
+});
+
+$('#btnSignOut').addEventListener('click', async () => {
+  await runSync().catch(() => {});
+  await logout().catch(() => {});
+  // A biblioteca é da equipe: não fica no aparelho depois que a pessoa sai.
+  saveScripts([]);
+  resetSyncState();
+  currentUser = null;
+  currentId = null;
+  clearAuthCache();
+  $('#dlgAccount').close();
+  showLogin();
+});
+
+$('#btnManageUsers').addEventListener('click', () => {
+  $('#dlgAccount').close();
+  $('#userStatus').textContent = '';
+  $('#dlgUsers').showModal();
+  renderUsers();
+});
+
+async function renderUsers() {
+  const list = $('#userList');
+  list.textContent = '…';
+  try {
+    const users = await listUsers();
+    list.replaceChildren(...users.map((u) => {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = 'u-name';
+      name.textContent = u.name;
+      const email = document.createElement('span');
+      email.className = 'u-email';
+      email.textContent = u.email;
+      const role = document.createElement('span');
+      role.className = 'badge';
+      role.textContent = t(u.role === 'admin' ? 'roleAdmin' : 'roleUser');
+      li.append(name, email, role);
+      if (u.id !== currentUser?.id) {
+        const del = document.createElement('button');
+        del.className = 'btn small danger';
+        del.textContent = t('remove');
+        del.addEventListener('click', async () => {
+          if (!confirm(t('confirmRemoveUser', { name: u.name }))) return;
+          try { await deleteUser(u.id); renderUsers(); } catch (err) { $('#userStatus').textContent = err.message; }
+        });
+        li.append(del);
+      }
+      return li;
+    }));
+  } catch (err) {
+    list.textContent = err.message;
+  }
+}
+
+$('#userForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = $('#userStatus');
+  status.className = 'status';
+  try {
+    await createUser({
+      name: $('#newUserName').value.trim(),
+      email: $('#newUserEmail').value.trim(),
+      password: $('#newUserPassword').value,
+      role: $('#newUserRole').value,
+    });
+    e.target.reset();
+    status.className = 'status ok';
+    status.textContent = '✓';
+    renderUsers();
+  } catch (err) {
+    status.className = 'status err';
+    status.textContent = err.message;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Inicialização
+// ---------------------------------------------------------------------------
+async function startApp() {
+  viewLogin.hidden = true;
+  els.viewEditor.hidden = false;
+  updateAccountUi();
+  if (authEnabled) {
+    // Puxa a biblioteca da equipe antes de decidir se cria o roteiro de exemplo.
+    await runSync();
+    startSyncLoop();
+  }
+  scripts = loadScripts();
+  if (!scripts.length) {
+    createScript({ title: t('sample'), body: sampleScript() });
+    scripts = loadScripts();
+  }
+  selectScript(currentId && getScript(currentId) ? currentId : scripts[0].id);
+}
+
+async function init() {
   // Primeira vez num celular: a fonte padrão de desktop fica grande demais.
   if (!hasSavedSettings()) {
     const side = Math.min(window.innerWidth, window.innerHeight);
@@ -952,14 +1184,15 @@ function init() {
   applyTheme();
   setLang(getLang());
   fillCueSelect();
-  scripts = loadScripts();
-  if (!scripts.length) {
-    createScript({ title: t('sample'), body: sampleScript() });
-    scripts = loadScripts();
-  }
+  applyTranslations(document);
   els.fitMinutes.value = settings.targetMinutes;
   $('#btnInstall').hidden = platformInfo().standalone;
-  selectScript(scripts[0].id);
-  applyTranslations(document);
+
+  const state = await authState();
+  authEnabled = state.authEnabled;
+  currentUser = state.user;
+  if (authEnabled && !currentUser) { showLogin(); return; }
+  await startApp();
 }
+
 init();
