@@ -138,11 +138,11 @@ O modelo não é fixo no código: o proxy consulta os modelos da sua conta e esc
 
 ## Publicar no EasyPanel
 
-1. No EasyPanel, crie um **App** e aponte a origem para este repositório do GitHub, na branch desejada.
-2. Em **Build**, escolha **Dockerfile**. O arquivo já está na raiz do projeto.
-3. Em **Domains**, adicione o seu domínio e defina a porta do contêiner como **80**. Deixe o HTTPS ligado, o EasyPanel emite o certificado Let's Encrypt.
-4. Em **Mounts** (ou *Volumes*), crie um volume apontando para **`/data`**. É onde ficam as contas e os roteiros da equipe; sem isso eles somem a cada deploy.
-5. Em **Environment**, cole as variáveis que quiser usar:
+No projeto do EasyPanel, crie o serviço com **New Service → App**, dê um nome a ele e configure seção por seção:
+
+1. **Source** — GitHub, informando o dono, o repositório e a branch.
+2. **Build** — método **Dockerfile**. O campo `File` fica como `Dockerfile`, que está na raiz do repositório.
+3. **Environment** — as variáveis que quiser usar, uma por linha:
 
    ```
    ADMIN_EMAIL=voce@fmp.com.br
@@ -150,7 +150,11 @@ O modelo não é fixo no código: o proxy consulta os modelos da sua conta e esc
    OPENAI_API_KEY=sk-...
    ```
 
-6. Clique em **Deploy** e entre no site com o email e a senha acima.
+4. **Advanced → Mounts** — um mount do tipo **Volume**, com um nome qualquer (ex.: `barzi-dados`) e `Mount Path` em **`/data`**. É onde ficam as contas e os roteiros da equipe; sem isso eles somem a cada deploy.
+5. **Domains** — o seu domínio, HTTPS ligado (o EasyPanel emite o certificado Let's Encrypt) e a porta apontando para **80**.
+6. **Deploy** — depois entre no site com o email e a senha do administrador.
+
+Se o serviço não subir, os **Logs** do próprio serviço mostram o motivo: a primeira linha do servidor diz se as contas foram ativadas e onde os dados estão sendo gravados.
 
 O HTTPS não é opcional: sem ele o navegador bloqueia câmera, microfone, rolagem por voz, janela flutuante e a instalação como PWA.
 
