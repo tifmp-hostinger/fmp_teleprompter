@@ -1,5 +1,5 @@
 // Service worker: cache do app para funcionar offline (PWA).
-const CACHE = 'fmp-barzi-prompter-v4';
+const CACHE = 'fmp-barzi-prompter-v5';
 const ASSETS = [
   './',
   './index.html',

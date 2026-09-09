@@ -10,7 +10,8 @@
   --border: #2c2c2e;
   --text: #ffffff;
   --text-2: #98989f;
-  --accent: #0a84ff;
+  --accent: #0a84ff;          /* marcas, linhas e preenchimentos */
+  --accent-fill: #0a6fd8;     /* fundo de botão com texto branco: 4.9:1 */
   --accent-2: #409cff;
   --accent-ink: #ffffff;
   --danger: #ff453a;
@@ -28,6 +29,7 @@
   --text: #000000;
   --text-2: #6c6c70;
   --accent: #007aff;
+  --accent-fill: #0062cf;
   --accent-2: #0a84ff;
   --accent-ink: #ffffff;
   --danger: #ff3b30;
@@ -45,6 +47,7 @@
   --text: #ffffff;
   --text-2: #9a9a9a;
   --accent: #ffffff;
+  --accent-fill: #ffffff;
   --accent-2: #d0d0d0;
   --accent-ink: #000000;
   --danger: #ffffff;
@@ -89,17 +92,17 @@ button { cursor: pointer; }
   background: var(--bg-3); color: var(--text); transition: background .15s, transform .06s, opacity .15s;
   white-space: nowrap; font-weight: 500;
 }
-.btn:hover { background: var(--bg-4); }
+@media (hover: hover) { .btn:hover { background: var(--bg-4); } }
 .btn:active { transform: scale(.97); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
-.btn.primary:hover { background: var(--accent-2); }
+.btn.primary { background: var(--accent-fill); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+@media (hover: hover) { .btn.primary:hover, .btn.ai:hover { background: color-mix(in srgb, var(--accent-fill) 86%, #000); } }
 .btn.big { padding: 13px 22px; font-size: 16px; border-radius: 13px; }
 .btn.small { padding: 7px 11px; font-size: 13px; border-radius: 9px; }
 .btn.danger { color: var(--danger); }
-.btn.ai { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn.ai { background: var(--accent-fill); color: var(--accent-ink); border-color: transparent; }
 [data-theme="mono"] .btn.ai { background: var(--bg-4); color: var(--text); }
 .btn.icon { width: 40px; height: 40px; padding: 0; font-size: 18px; border-radius: 11px; }
-.btn[aria-pressed="true"], .btn.active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn[aria-pressed="true"], .btn.active { background: var(--accent-fill); color: var(--accent-ink); border-color: transparent; }
 .btn:disabled { opacity: .5; cursor: default; }
 input[type="text"], input[type="search"], input[type="number"], input[type="password"], select, textarea {
   background: var(--bg-2); border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; outline: none;
@@ -129,7 +132,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent);
 .dial-thumb {
   position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
   height: 34px; min-width: 62px; padding: 0 12px; border-radius: 999px;
-  background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+  background: var(--accent-fill); color: var(--accent-ink); box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
   display: grid; place-items: center; pointer-events: none; transition: transform .08s;
 }
 .dial.dragging .dial-thumb { transform: translate(-50%, -50%) scale(1.08); }
@@ -156,7 +159,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent);
 .sidebar-head .row .btn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .script-list { list-style: none; margin: 0; padding: 8px; overflow: auto; flex: 1; -webkit-overflow-scrolling: touch; }
 .script-item { padding: 11px 12px; border-radius: 11px; cursor: pointer; display: grid; gap: 3px; border: 1px solid transparent; }
-.script-item:hover { background: var(--bg-3); }
+@media (hover: hover) { .script-item:hover { background: var(--bg-3); } }
 .script-item.active { background: var(--bg-3); border-color: var(--accent); }
 .script-item .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .script-item .meta { color: var(--text-2); font-size: 12px; display: flex; gap: 8px; }
@@ -211,9 +214,9 @@ kbd {
   padding: .15em .6em; border-radius: 999px; vertical-align: middle; margin: 0 .3em; line-height: 1.6;
   background: #6b7280; color: #fff;
 }
-.tp-cue.cue-pause { background: #0a84ff; color: #fff; }
+.tp-cue.cue-pause { background: #0a6fd8; color: #fff; }
 .tp-cue.cue-smile { background: #ff9f0a; color: #1a1200; }
-.tp-cue.cue-camera { background: #ff453a; color: #fff; }
+.tp-cue.cue-camera { background: #d32316; color: #fff; }
 .tp-cue.cue-emph { background: #bf5af2; color: #fff; }
 .tp-cue.cue-slow { background: #30d158; color: #052b12; }
 .tp-cue.cue-fast { background: #ff6b22; color: #fff; }
@@ -254,7 +257,8 @@ kbd {
 
 /* ---------- HUD ---------- */
 .hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; transition: opacity .3s; }
-.hud.hidden { opacity: 0; }
+.hud.hidden { opacity: 0; pointer-events: none; }
+.hud.hidden .hud-top, .hud.hidden .hud-bottom { pointer-events: none; }
 .hud-top, .hud-bottom {
   position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 6px; pointer-events: auto;
 }
@@ -272,8 +276,8 @@ kbd {
   background: rgba(30, 30, 34, .72); border-color: rgba(255, 255, 255, .14); color: #fff;
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
-.hud .btn:hover { background: rgba(60, 60, 66, .82); }
-.hud .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+@media (hover: hover) { .hud .btn:hover { background: rgba(60, 60, 66, .82); } }
+.hud .btn[aria-pressed="true"] { background: var(--accent-fill); color: var(--accent-ink); border-color: transparent; }
 .hud-title { font-weight: 600; color: #fff; max-width: 26vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge {
   font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 5px 9px; border-radius: 999px;
@@ -283,8 +287,9 @@ kbd {
 .badge.rec { background: var(--danger); color: #fff; animation: blink 1.2s infinite; }
 [data-theme="mono"] .badge.voice, [data-theme="mono"] .badge.rec { background: #fff; color: #000; }
 @keyframes blink { 50% { opacity: .4; } }
-.hud-stat { color: #fff; font-variant-numeric: tabular-nums; font-weight: 600; padding: 0 8px; }
-.hud-stat small { color: rgba(255,255,255,.6); font-weight: 400; margin-left: 4px; }
+.hud-stat { color: #fff; font-variant-numeric: tabular-nums; font-weight: 600; padding: 0 8px; font-size: 15px; }
+.hud-stat small { color: rgba(255,255,255,.75); font-weight: 600; margin-left: 5px; font-size: 13px; }
+#hudRemaining { color: #fff; }
 
 .progress { position: relative; height: 12px; border-radius: 999px; background: rgba(255,255,255,.18); cursor: pointer; }
 #progressFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 999px; }
@@ -300,8 +305,8 @@ kbd {
 
 .transport { display: flex; align-items: center; gap: 10px; }
 .transport .btn { width: 48px; height: 48px; font-size: 20px; flex: none; }
-.transport .btn.play { width: 62px; height: 62px; font-size: 26px; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.transport .btn.play:hover { background: var(--accent-2); }
+.transport .btn.play { width: 62px; height: 62px; font-size: 26px; background: var(--accent-fill); color: var(--accent-ink); border-color: transparent; }
+@media (hover: hover) { .transport .btn.play:hover { background: color-mix(in srgb, var(--accent-fill) 86%, #000); } }
 .speed-wrap { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .speed-wrap .speed-label {
   display: flex; align-items: baseline; gap: 6px; color: rgba(255,255,255,.72); font-size: 11px;
@@ -330,7 +335,7 @@ kbd {
 .field.inline label { justify-content: flex-start; }
 .segmented { display: grid; grid-auto-flow: column; gap: 3px; background: var(--bg-3); padding: 3px; border-radius: 11px; }
 .segmented button { border: 0; background: transparent; padding: 9px 6px; border-radius: 9px; color: var(--text-2); font-weight: 600; font-size: 13px; }
-.segmented button.active { background: var(--accent); color: var(--accent-ink); }
+.segmented button.active { background: var(--accent-fill); color: var(--accent-ink); }
 [data-theme="mono"] .segmented button.active { background: #fff; color: #000; }
 
 /* ---------- Diálogos ---------- */
@@ -385,8 +390,18 @@ dialog::backdrop { background: rgba(0,0,0,.62); backdrop-filter: blur(4px); }
 
 /* ---------- Responsivo ---------- */
 @media (max-width: 860px) {
+  /* O Safari do iPhone dá zoom na página ao focar um campo com menos de 16px,
+     e não desfaz sozinho. Todo campo passa a 16px no celular. */
+  input[type="text"], input[type="search"], input[type="email"], input[type="password"],
+  input[type="number"], select, textarea { font-size: 16px; }
+  .statsbar input[type="number"] { font-size: 16px; width: 82px; }
+
   .editor-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .sidebar { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  .sidebar { max-height: 38vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  /* A lista precisa caber pelo menos um cartão inteiro, senão o título fica cortado. */
+  .script-list { min-height: 84px; }
+  /* Backup e restauração são raros: no celular saem da lista e vão para Preferências. */
+  .sidebar-foot { display: none; }
   .sidebar-head { padding: 10px; }
   .sidebar-foot { padding-bottom: 10px; }
   /* O editor rola por inteiro: estatísticas e ações ficam sempre alcançáveis. */
@@ -399,7 +414,22 @@ dialog::backdrop { background: rgba(0,0,0,.62); backdrop-filter: blur(4px); }
   #scriptBody { min-height: 42vh; }
   .topbar { padding-top: calc(8px + var(--safe-t)); padding-bottom: 8px; gap: 8px; }
   .topbar-actions { flex: none; }
-  #btnInstall { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
+  #btnInstall { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; }
+  /* Atalhos de teclado não servem para nada num celular, e o botão empurrava
+     Preferências para fora da tela no iPhone SE. */
+  #btnShortcuts { display: none; }
+  #btnAccount { max-width: 28vw; overflow: hidden; text-overflow: ellipsis; }
+
+  /* O painel de ajustes vira folha inferior: dá para ver o texto mudando enquanto
+     se mexe no tamanho da fonte ou na velocidade. */
+  .panel {
+    top: auto; left: 0; right: 0; width: 100%; max-height: 60vh;
+    border-left: 0; border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    padding-top: 14px;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, .5);
+  }
+  .segmented { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
   .brand small { display: none; }
   .hud-title { display: none; }
   .transport .btn { width: 44px; height: 44px; font-size: 18px; }
@@ -409,11 +439,24 @@ dialog::backdrop { background: rgba(0,0,0,.62); backdrop-filter: blur(4px); }
 }
 @media (max-width: 520px) {
   .dial-step { display: none; }
-  .hud-stat { padding: 0 4px; font-size: 13px; }
+  .hud-stat { padding: 0 4px; font-size: 14px; }
   /* Janela flutuante e segundo monitor não existem no celular. */
   #btnPip, #btnOutput { display: none; }
-  #hudMode { font-size: 10px; padding: 4px 7px; }
-  .speed-wrap .speed-label { font-size: 10px; }
+  #hudMode { font-size: 11px; padding: 4px 7px; }
+  .speed-wrap .speed-label { font-size: 11px; }
+}
+
+/* Celular deitado no tripé: a tela tem pouca altura e o HUD comia quase metade
+   dela. Aqui ele encolhe para sobrar texto. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hud-top { padding-top: calc(6px + var(--safe-t)); padding-bottom: 6px; gap: 4px; }
+  .hud-top .btn.icon { width: 34px; height: 34px; font-size: 15px; border-radius: 9px; }
+  .hud-bottom { gap: 6px; padding-top: 8px; padding-bottom: calc(8px + var(--safe-b)); }
+  .transport .btn { width: 38px; height: 38px; font-size: 16px; }
+  .transport .btn.play { width: 46px; height: 46px; font-size: 19px; }
+  .dial-track, .dial-thumb { height: 30px; }
+  .progress { height: 8px; }
+  .panel { max-height: 100%; top: 0; left: auto; width: min(360px, 80vw); border-radius: 0; border-left: 1px solid var(--border); border-top: 0; }
 }
 
 /* ---------- Página do controle remoto ---------- */

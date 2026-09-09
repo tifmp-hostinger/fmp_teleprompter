@@ -206,6 +206,9 @@ $('#btnBackup').addEventListener('click', () => {
   download(`fmp-barzi-prompter-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
 });
 $('#btnRestore').addEventListener('click', () => $('#fileImport').click());
+// Mesmas ações dentro de Preferências, porque no celular a barra lateral não as mostra.
+$('#btnBackup2').addEventListener('click', () => $('#btnBackup').click());
+$('#btnRestore2').addEventListener('click', () => $('#fileImport').click());
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', async (e) => {
   await importFiles(e.target.files);
@@ -422,6 +425,32 @@ const session = { pauses: 0, startedAt: 0, voiceWpmSamples: [] };
 let voiceIndex = 0;
 let liveWpm = 0;
 
+// ---------------------------------------------------------------------------
+// Tela sempre acesa durante a apresentação
+// ---------------------------------------------------------------------------
+// Sem isto o celular apaga a tela no meio da leitura, que é justamente quando
+// ninguém pode tocar no aparelho. O sistema solta o bloqueio sozinho quando a
+// aba sai de foco, por isso ele é pedido de novo ao voltar.
+let wakeLock = null;
+
+async function manterTelaAcesa() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch { /* recusado pelo sistema, bateria fraca, aba em segundo plano */ }
+}
+
+function liberarTela() {
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!els.viewPrompter.hidden) manterTelaAcesa();
+});
+
 function currentSettingsForScript() {
   const s = getScript(currentId);
   const merged = { ...settings };
@@ -450,6 +479,7 @@ function startPresentation() {
   updateHud(prompter.getState());
   broadcastScript();
   showHud();
+  manterTelaAcesa();
   if (settings.mode === 'voice') startVoice();
   if (settings.cameraEnabled) startCamera().catch(() => {});
   history.pushState({ prompter: true }, '');
@@ -458,6 +488,7 @@ function startPresentation() {
 async function exitPresentation({ skipReport = false } = {}) {
   const state = prompter.getState();
   prompter.pause();
+  liberarTela();
   stopVoice();
   if (recording) await stopRecording();
   camera.stop();
@@ -514,14 +545,14 @@ function updateHud(state) {
 function playWithCountdown() {
   if (prompter.playing) { prompter.pause(); session.pauses++; return; }
   const n = Number(settings.countdown) || 0;
-  if (n <= 0 || prompter.y > 0) { prompter.play(); return; }
+  if (n <= 0 || prompter.y > 0) { prompter.play(); showHud(); return; }
   let left = n;
   els.countdown.hidden = false;
   const tick = () => {
     els.countdownNum.textContent = left;
     els.countdownNum.style.animation = 'none';
     requestAnimationFrame(() => { els.countdownNum.style.animation = ''; });
-    if (left-- <= 0) { els.countdown.hidden = true; prompter.play(); return; }
+    if (left-- <= 0) { els.countdown.hidden = true; prompter.play(); showHud(); return; }
     countdownTimer = setTimeout(tick, 1000);
   };
   tick();
@@ -589,14 +620,24 @@ function changeFont(delta) {
 
 // Gestos: toque = play/pause, arrastar = navegar, roda do mouse = navegar
 let drag = null;
-els.stage.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; drag = { y: e.clientY, moved: false, startY: prompter.y }; });
+let hudEstavaEscondido = false;
+els.stage.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  hudEstavaEscondido = els.hud.classList.contains('hidden');
+  drag = { y: e.clientY, moved: false, startY: prompter.y };
+});
 els.stage.addEventListener('pointermove', (e) => {
   if (!drag) return;
   const dy = e.clientY - drag.y;
   if (Math.abs(dy) > 6) drag.moved = true;
   if (drag.moved) { prompter.setY(drag.startY - dy * (settings.mirrorV ? -1 : 1)); voiceIndex = prompter.currentWord; }
 });
-els.stage.addEventListener('pointerup', () => { if (drag && !drag.moved) playWithCountdown(); drag = null; });
+els.stage.addEventListener('pointerup', () => {
+  // Com os controles escondidos, o primeiro toque só os traz de volta: quem quis
+  // espiar o tempo restante não pode interromper a gravação sem querer.
+  if (drag && !drag.moved && !hudEstavaEscondido) playWithCountdown();
+  drag = null;
+});
 els.stage.addEventListener('pointercancel', () => { drag = null; });
 els.stage.addEventListener('wheel', (e) => { e.preventDefault(); prompter.seekPixels(e.deltaY); voiceIndex = prompter.currentWord; }, { passive: false });
 
@@ -899,9 +940,20 @@ function remoteState(state) {
   if (now - lastRemoteSent < 200 && state.playing) return;
   lastRemoteSent = now;
   remote.sendState({
+    apresentando: !els.viewPrompter.hidden,
     playing: state.playing, progress: state.progress, elapsed: state.elapsed, remaining: state.remaining,
     wpm: state.wpm, mode: state.mode, targetMinutes: settings.targetMinutes,
     context: prompter.currentContext(), title: els.title.value,
+  });
+}
+
+/** Avisa o controle remoto mesmo fora da apresentação, senão ele parece funcional à toa. */
+function avisarRemotoOcioso() {
+  if (!remote || !els.viewPrompter.hidden) return;
+  remote.sendState({
+    apresentando: false, playing: false, progress: 0, elapsed: 0, remaining: 0,
+    wpm: settings.wpm, mode: settings.mode, targetMinutes: settings.targetMinutes,
+    context: '', title: els.title.value,
   });
 }
 $('#btnRemote').addEventListener('click', async () => {
@@ -909,7 +961,11 @@ $('#btnRemote').addEventListener('click', async () => {
   if (!remote) {
     remote = new RemoteHost({
       onCommand: handleRemoteCommand,
-      onClients: (n) => { els.hudRemote.hidden = n === 0; toast(t(n ? 'remoteConnected' : 'remoteDisconnected')); },
+      onClients: (n) => {
+        els.hudRemote.hidden = n === 0;
+        toast(t(n ? 'remoteConnected' : 'remoteDisconnected'));
+        if (n) avisarRemotoOcioso();
+      },
     });
     $('#remoteStatus').textContent = '…';
     const info = await remote.start();
@@ -924,6 +980,7 @@ $('#btnRemote').addEventListener('click', async () => {
       $('#remoteQr').textContent = info.code;
     }
     remoteState(prompter.getState());
+    avisarRemotoOcioso();
   }
 });
 $('#btnCopyLink').addEventListener('click', async () => {
